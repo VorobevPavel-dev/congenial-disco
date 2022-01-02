@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-type keyword string
-
 //SQL-reserved words
 const (
 	SelectKeyword string = "select"
@@ -137,6 +135,26 @@ func ParseIdentifierToken(value string) *Token {
 		Value: value,
 		Kind:  IdentifierKind,
 	}
+}
+
+func TokenFromKeyword(value string) (*Token, error) {
+	if !utility.StringIsIn(value, keywords) {
+		return nil, errors.New("value is not a keyword")
+	}
+	return &Token{
+		Value: value,
+		Kind:  KeywordKind,
+	}, nil
+}
+
+func TokenFromSymbol(value string) (*Token, error) {
+	if !utility.StringIsIn(value, symbols) {
+		return nil, errors.New("value is not a symbol")
+	}
+	return &Token{
+		Value: value,
+		Kind:  SymbolKind,
+	}, nil
 }
 
 func ParseTokenSequence(expression string) *[]*Token {
