@@ -1,6 +1,8 @@
 package tokenizer
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestTokenParsing(t *testing.T) {
 	t.Run("Parsing numeric tokens", func(t *testing.T) {
@@ -67,6 +69,73 @@ func TestTokenParsing(t *testing.T) {
 			if actualValue != nil {
 				t.Errorf("Expected nil on parsing keyword: given: %v, got: %v",
 					testCase, actualValue)
+			}
+		}
+	})
+}
+
+func TestTokenSequenceParsing(t *testing.T) {
+	t.Run("Parse token sequence", func(t *testing.T) {
+		inputs := []string{
+			"select from test(1234)",
+		}
+		expectedResults := [][]*Token{
+			{
+				{
+					Value:    "select",
+					Kind:     KeywordKind,
+					Position: 0,
+				},
+				{
+					Value:    " ",
+					Kind:     SymbolKind,
+					Position: 6,
+				},
+				{
+					Value:    "from",
+					Kind:     KeywordKind,
+					Position: 7,
+				},
+				{
+					Value:    " ",
+					Kind:     SymbolKind,
+					Position: 11,
+				},
+				{
+					Value:    "test",
+					Kind:     IdentifierKind,
+					Position: 12,
+				},
+				{
+					Value:    "(",
+					Kind:     SymbolKind,
+					Position: 16,
+				},
+				{
+					Value:    "1234",
+					Kind:     NumericKind,
+					Position: 17,
+				},
+				{
+					Value:    ")",
+					Kind:     SymbolKind,
+					Position: 21,
+				},
+			},
+		}
+		for testCase := range inputs {
+			actualResult := *ParseTokenSequence(inputs[testCase])
+			if len(actualResult) != len(expectedResults[testCase]) {
+				t.Errorf("Function have returned unexpected number of tokens: %d (expected %d)",
+					len(actualResult), len(expectedResults[testCase]))
+			}
+			for index := range actualResult {
+				if !actualResult[index].equals(expectedResults[testCase][index]) {
+					t.Errorf("Tokens on position %d are different. Expected: %s, got: %s",
+						index+1,
+						expectedResults[testCase][index],
+						actualResult[index])
+				}
 			}
 		}
 	})
