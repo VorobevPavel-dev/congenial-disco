@@ -130,7 +130,7 @@ func TestTokenSequenceParsing(t *testing.T) {
 					len(actualResult), len(expectedResults[testCase]))
 			}
 			for index := range actualResult {
-				if !actualResult[index].equals(expectedResults[testCase][index]) {
+				if !actualResult[index].Equals(expectedResults[testCase][index]) {
 					t.Errorf("Tokens on position %d are different. Expected: %s, got: %s",
 						index+1,
 						expectedResults[testCase][index],

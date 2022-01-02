@@ -71,7 +71,7 @@ type Token struct {
 	Position int       `json:"position"`
 }
 
-func (t *Token) equals(other *Token) bool {
+func (t *Token) Equals(other *Token) bool {
 	return t.Value == other.Value && t.Kind == other.Kind
 }
 
@@ -137,24 +137,24 @@ func ParseIdentifierToken(value string) *Token {
 	}
 }
 
-func TokenFromKeyword(value string) (*Token, error) {
+func TokenFromKeyword(value string) *Token {
 	if !utility.StringIsIn(value, keywords) {
-		return nil, errors.New("value is not a keyword")
+		return nil
 	}
 	return &Token{
 		Value: value,
 		Kind:  KeywordKind,
-	}, nil
+	}
 }
 
-func TokenFromSymbol(value string) (*Token, error) {
+func TokenFromSymbol(value string) *Token {
 	if !utility.StringIsIn(value, symbols) {
-		return nil, errors.New("value is not a symbol")
+		return nil
 	}
 	return &Token{
 		Value: value,
 		Kind:  SymbolKind,
-	}, nil
+	}
 }
 
 func ParseTokenSequence(expression string) *[]*Token {
@@ -174,4 +174,13 @@ func ParseTokenSequence(expression string) *[]*Token {
 		resultTokens = append(resultTokens, token)
 	}
 	return &resultTokens
+}
+
+func FindToken(tokens []*Token, expected *Token) int {
+	for index := range tokens {
+		if tokens[index].Equals(expected) {
+			return index
+		}
+	}
+	return -1
 }
