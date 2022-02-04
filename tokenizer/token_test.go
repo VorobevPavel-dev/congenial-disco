@@ -78,6 +78,8 @@ func TestTokenSequenceParsing(t *testing.T) {
 	t.Run("Parse token sequence", func(t *testing.T) {
 		inputs := []string{
 			"select from test(1234)",
+			"create table integer (id int, name text)",
+			"insert into test values",
 		}
 		expectedResults := [][]*Token{
 			{
@@ -110,6 +112,66 @@ func TestTokenSequenceParsing(t *testing.T) {
 					Value:    ")",
 					Kind:     SymbolKind,
 					Position: 21,
+				},
+			},
+			{
+				{
+					Value: "create",
+					Kind:  KeywordKind,
+				},
+				{
+					Value: "table",
+					Kind:  KeywordKind,
+				},
+				{
+					Value: "integer",
+					Kind:  IdentifierKind,
+				},
+				{
+					Value: "(",
+					Kind:  SymbolKind,
+				},
+				{
+					Value: "id",
+					Kind:  IdentifierKind,
+				},
+				{
+					Value: "int",
+					Kind:  TypeKind,
+				},
+				{
+					Value: ",",
+					Kind:  SymbolKind,
+				},
+				{
+					Value: "name",
+					Kind:  IdentifierKind,
+				},
+				{
+					Value: "text",
+					Kind:  TypeKind,
+				},
+				{
+					Value: ")",
+					Kind:  SymbolKind,
+				},
+			},
+			{
+				{
+					Value: "insert",
+					Kind:  KeywordKind,
+				},
+				{
+					Value: "into",
+					Kind:  KeywordKind,
+				},
+				{
+					Value: "test",
+					Kind:  IdentifierKind,
+				},
+				{
+					Value: "values",
+					Kind:  KeywordKind,
 				},
 			},
 		}

@@ -32,6 +32,11 @@ const (
 )
 
 const (
+	IntType  string = "int"
+	TextType string = "text"
+)
+
+const (
 	// NumericKind will correspond to all numeric values
 	NumericKind TokenKind = iota
 	// KeywordKind will correspond to all string equal to one of keywords
@@ -40,6 +45,8 @@ const (
 	SymbolKind
 	// IdentifierKind will correspond to every custom value (table name, column name, values etc...)
 	IdentifierKind
+	// TypeKind will correspond to every column type in request
+	TypeKind
 )
 
 type TokenKind uint
@@ -62,6 +69,10 @@ var (
 		AsteriskSymbol,
 		LeftParenSymbol,
 		RightParenSymbol,
+	}
+	types = []string{
+		IntType,
+		TextType,
 	}
 	ErrUnsupportedTokenType = errors.New("unsupported token type")
 )
@@ -88,7 +99,13 @@ type Tokenizer func(string) *Token
 // TokenFromString is a function which will parse given string to token (no matter what kind
 // it will have)
 func TokenFromString(value string, cursorPosition int) (*Token, error) {
-	tokenizers := []Tokenizer{ParseNumericToken, ParseKeywordToken, ParseSymbolToken, ParseIdentifierToken}
+	tokenizers := []Tokenizer{
+		ParseNumericToken,
+		ParseTypeToken,
+		ParseKeywordToken,
+		ParseSymbolToken,
+		ParseIdentifierToken,
+	}
 	for _, function := range tokenizers {
 		token := function(value)
 		if token != nil {
@@ -126,6 +143,17 @@ func ParseSymbolToken(value string) *Token {
 		return &Token{
 			Value: value,
 			Kind:  SymbolKind,
+		}
+	}
+	return nil
+}
+
+func ParseTypeToken(value string) *Token {
+	loweredValue := strings.ToLower(value)
+	if utility.StringIsIn(value, types) {
+		return &Token{
+			Value: loweredValue,
+			Kind:  TypeKind,
 		}
 	}
 	return nil
