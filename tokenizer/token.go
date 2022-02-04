@@ -173,7 +173,7 @@ func ParseTokenSequence(expression string) *[]*Token {
 		// FIXME: replace it with actual length (for different languages)
 		startPosition += len(token.Value)
 		// Removing spaces from token list
-		if token.Value != " " {
+		if strings.TrimSpace(token.Value) != "" {
 			resultTokens = append(resultTokens, token)
 		}
 	}
