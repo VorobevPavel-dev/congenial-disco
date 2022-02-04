@@ -87,19 +87,9 @@ func TestTokenSequenceParsing(t *testing.T) {
 					Position: 0,
 				},
 				{
-					Value:    " ",
-					Kind:     SymbolKind,
-					Position: 6,
-				},
-				{
 					Value:    "from",
 					Kind:     KeywordKind,
 					Position: 7,
-				},
-				{
-					Value:    " ",
-					Kind:     SymbolKind,
-					Position: 11,
 				},
 				{
 					Value:    "test",

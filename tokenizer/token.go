@@ -3,9 +3,10 @@ package tokenizer
 import (
 	"encoding/json"
 	"errors"
-	"github.com/VorobevPavel-dev/congenial-disco/utility"
 	"strconv"
 	"strings"
+
+	"github.com/VorobevPavel-dev/congenial-disco/utility"
 )
 
 //SQL-reserved words
@@ -171,7 +172,10 @@ func ParseTokenSequence(expression string) *[]*Token {
 		token.Position = startPosition
 		// FIXME: replace it with actual length (for different languages)
 		startPosition += len(token.Value)
-		resultTokens = append(resultTokens, token)
+		// Removing spaces from token list
+		if token.Value != " " {
+			resultTokens = append(resultTokens, token)
+		}
 	}
 	return &resultTokens
 }
