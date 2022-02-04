@@ -2,16 +2,17 @@ package parser
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 // Definition of structures for Insert statements
 
 type InsertStatement struct {
-	Table  tokenizer.Token
-	Values *[]string
+	Table       tokenizer.Token
+	ColumnNames *[]tokenizer.Token
+	Values      *[]string
 }
 
 // Definition of structures for Create statements
@@ -65,19 +66,18 @@ func parseSelectStatement(tokens []*tokenizer.Token) (*SelectStatement, error) {
 
 	var items []*tokenizer.Token
 
-	if len(tokens) < 7 {
-		return nil, errors.New("select statement contains less then 7 elements inside")
-	}
+	//Process SELECT keyword
 	if !tokens[0].Equals(tokenizer.TokenFromKeyword("select")) {
 		return nil, fmt.Errorf("expected SELECT keyword at %d", tokens[0].Position)
 	}
-	//tokens[1] is a space
+
+	//Process columns
+	//	Get FROM token position
 	fromPosition := tokenizer.FindToken(tokens, tokenizer.TokenFromKeyword("from"))
 	if fromPosition == -1 {
 		return nil, fmt.Errorf("cannot find FROM keword in request")
 	}
-
-	//Parse values to select
+	//	Parse identifiers in loop
 	for _, item := range tokens[1:fromPosition] {
 		if item.Equals(tokenizer.TokenFromSymbol(",")) ||
 			item.Equals(tokenizer.TokenFromSymbol(" ")) {
@@ -89,18 +89,69 @@ func parseSelectStatement(tokens []*tokenizer.Token) (*SelectStatement, error) {
 		}
 		items = append(items, item)
 	}
+	if items == nil {
+		return nil, fmt.Errorf("no identifiers provided for select")
+	}
 
-	//tokens[fromPosition+1] is a space
-	//tokens[fromPosition+2] is a table
-	//tokens[fromPosition+3] is a ;
-	tableToken := tokens[fromPosition+2]
-
-	if !tokens[fromPosition+3].Equals(tokenizer.TokenFromSymbol(";")) {
+	//Process table name
+	//	Check if ";" exists
+	endPosition := tokenizer.FindToken(tokens, tokenizer.TokenFromSymbol(";"))
+	if endPosition == -1 {
 		return nil, fmt.Errorf("cannot find \";\"  in the end of request")
 	}
+	//	Check if there is a token between FROM and ; tokens
+	if endPosition == fromPosition {
+		return nil, fmt.Errorf("no table name provided in request")
+	}
+	tableToken := tokens[fromPosition+1]
 
 	return &SelectStatement{
 		Item: items,
 		From: *tableToken,
 	}, nil
 }
+
+// func parseInsertIntoStatement(tokens []*tokenizer.Token) (*InsertStatement, error) {
+// 	// INSERT INTO table_name (column1, column2, column3, ...)
+// 	// VALUES (value1, value2, value3, ...);
+// 	// INSERT INTO table_name
+// 	// VALUES (value1, value2, value3, ...);
+
+// 	var (
+// 		columnNames []tokenizer.Token
+// 		values      []string
+// 	)
+
+// 	// if !tokens[0].Equals(tokenizer.TokenFromKeyword("insert")) {
+// 	// 	return nil, fmt.Errorf("expected INSERT keyword at %d", tokens[0].Position)
+// 	// }
+
+// 	// if !tokens[1].Equals(tokenizer.TokenFromKeyword("into")) {
+// 	// 	return nil, fmt.Errorf("expected INTO keyword at %d", tokens[0].Position)
+// 	// }
+
+// 	// tableName := tokens[2]
+
+// 	// //Processs string from start to VALUES.pos-1 token
+// 	// openBracketColumns := tokenizer.FindToken(tokens, tokenizer.TokenFromSymbol("("))
+// 	// closeBracketColumns := tokenizer.FindToken(tokens, tokenizer.TokenFromSymbol(")"))
+// 	// if !tokens[3].Equals(tokenizer.TokenFromKeyword("values")) {
+// 	// 	for _, item := range tokens[openBracketColumns:closeBracketColumns] {
+// 	// 		if item.Equals(tokenizer.TokenFromSymbol(",")) ||
+// 	// 			item.Equals(tokenizer.TokenFromSymbol(" ")) {
+// 	// 			continue
+// 	// 		}
+// 	// 		// if current token is a name
+// 	// 		if item.Kind != tokenizer.IdentifierKind {
+// 	// 			return nil, fmt.Errorf("only Identifiers allowed to be SELECTed")
+// 	// 		}
+// 	// 		columnNames = append(columnNames, *item)
+// 	// 	}
+
+// 	// }
+
+// 	// openBracketColumns := tokenizer.FindToken(tokens, tokenizer.TokenFromSymbol("("))
+
+// 	start, end := 0, len(tokens)
+// 	// process "INSERT INTO"
+// }

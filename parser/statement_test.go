@@ -1,8 +1,9 @@
 package parser
 
 import (
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 	"testing"
+
+	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 func TestSelectStatementParsing(t *testing.T) {
@@ -50,6 +51,9 @@ func TestSelectStatementParsing(t *testing.T) {
 		inputs := []string{
 			"Select 1,b,c from test;",
 			"INsert into test values (1,2,3);",
+			"Select from test;",
+			"Select from test",
+			"Select a,     b, c from",
 		}
 		for testCase := range inputs {
 			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
