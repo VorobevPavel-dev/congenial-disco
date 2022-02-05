@@ -6,11 +6,13 @@ import (
 
 type Element interface {
 	AsString() string
-	AsInt() int64
+	AsInt() (int64, error)
 }
 
 type Table interface {
-	Create(req *parser.CreateTableStatement) error
+	IsInitialized() bool
+	Create(req *parser.CreateTableStatement) (string, error)
 	Select(req *parser.SelectStatement) (*[][]Element, error)
 	Insert(req *parser.InsertStatement) error
+	ShowCreate() string
 }
