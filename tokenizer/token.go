@@ -19,6 +19,7 @@ const (
 	InsertKeyword string = "insert"
 	IntoKeyword   string = "into"
 	ValuesKeyword string = "values"
+	ShowKeyword   string = "show"
 )
 
 // Symbol constants
@@ -61,6 +62,7 @@ var (
 		InsertKeyword,
 		IntoKeyword,
 		ValuesKeyword,
+		ShowKeyword,
 	}
 	symbols = []string{
 		CommaSymbol,

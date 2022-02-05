@@ -165,3 +165,47 @@ func TestCreateTableParsing(t *testing.T) {
 		}
 	})
 }
+
+func TestShowCreateParsing(t *testing.T) {
+	t.Run("Test valid show create parsing", func(t *testing.T) {
+		inputs := []string{
+			"show create (test);",
+		}
+		expectedOutputs := []*ShowCreateStatement{
+			{
+				TableName: tokenizer.Token{
+					Value: "test",
+					Kind:  tokenizer.IdentifierKind,
+				},
+			},
+		}
+		for testCase := range inputs {
+			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			actualResult, err := parseShowCreateStatement(tokenList)
+			if err != nil {
+				t.Errorf("Parsing failed on set #%d: %v",
+					testCase, err)
+			}
+			if !actualResult.Equals(expectedOutputs[testCase]) {
+				t.Errorf("Assertion failed. Expected: %s, got: %s",
+					actualResult.String(), expectedOutputs[testCase].String())
+			}
+		}
+	})
+	t.Run("Test invalid show create statement parsing", func(t *testing.T) {
+		inputs := []string{
+			"show create (1);",
+			"show create;",
+			"show create test;",
+			"show create test",
+		}
+		for testCase := range inputs {
+			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			actualResult, err := parseShowCreateStatement(tokenList)
+			if err == nil {
+				t.Errorf("Expected error on set #%d. Values got: %v",
+					testCase, actualResult)
+			}
+		}
+	})
+}

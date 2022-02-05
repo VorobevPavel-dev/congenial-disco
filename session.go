@@ -8,12 +8,12 @@ import (
 )
 
 type Session struct {
-	tables map[string]interface{}
+	tables map[string]table.Table
 }
 
 func InitSession() *Session {
 	return &Session{
-		tables: make(map[string]interface{}),
+		tables: make(map[string]table.Table),
 	}
 }
 
@@ -29,6 +29,11 @@ func (s *Session) ExecuteCommand(request string) error {
 		tn, _ := t.Create(statement.CreateTableStatement)
 		s.tables[tn] = t
 		return nil
+	} else if statement.ShowCreateStatement != nil {
+		// Check if table exists
+		if val, ok := s.tables[statement.ShowCreateStatement.TableName.Value]; ok {
+			val.ShowCreate()
+		}
 	}
-	return errors.New("current command is not supported. Only CREATE TABLE")
+	return errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE ()")
 }

@@ -6,6 +6,7 @@ type Statement struct {
 	SelectStatement      *SelectStatement
 	CreateTableStatement *CreateTableStatement
 	InsertStatement      *InsertStatement
+	ShowCreateStatement  *ShowCreateStatement
 }
 
 // Parse will try to parse statement with all parsers successively
@@ -18,24 +19,24 @@ func Parse(request string) *Statement {
 	if createStatement != nil {
 		return &Statement{
 			CreateTableStatement: createStatement,
-			InsertStatement:      nil,
-			SelectStatement:      nil,
 		}
 	}
 	insertStatement, _ := parseInsertIntoStatement(tokens)
 	if insertStatement != nil {
 		return &Statement{
-			InsertStatement:      insertStatement,
-			CreateTableStatement: nil,
-			SelectStatement:      nil,
+			InsertStatement: insertStatement,
 		}
 	}
 	selectStatement, _ := parseSelectStatement(tokens)
 	if selectStatement != nil {
 		return &Statement{
-			SelectStatement:      selectStatement,
-			CreateTableStatement: nil,
-			InsertStatement:      nil,
+			SelectStatement: selectStatement,
+		}
+	}
+	showCreateStatement, _ := parseShowCreateStatement(tokens)
+	if showCreateStatement != nil {
+		return &Statement{
+			ShowCreateStatement: showCreateStatement,
 		}
 	}
 	return nil
