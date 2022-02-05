@@ -1,192 +1,126 @@
 package tokenizer
 
 import (
+	"math/rand"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
 func TestTokenParsing(t *testing.T) {
+	// Generates numberOfTests numbers, converts them to strings and
+	// tries to represent it as list of tokens
 	t.Run("Parsing numeric tokens", func(t *testing.T) {
-		input := []string{"123", "456", "-1234"}
-		output := []Token{
-			{
-				Value:    "123",
-				Kind:     NumericKind,
-				Position: 0,
-			},
-			{
-				Value:    "456",
-				Kind:     NumericKind,
-				Position: 0,
-			},
-			{
-				Value:    "-1234",
-				Kind:     NumericKind,
-				Position: 0,
-			},
-		}
-		for index, testCase := range input {
-			actualValue, err := TokenFromString(testCase, 0)
+		// Generate input and expected output data
+		numberOfTests := 10000
+		rand.Seed(time.Now().UnixNano())
+		min, max := -100000, 100000
+		for i := 0; i < numberOfTests; i++ {
+			ti := strconv.Itoa(rand.Intn(max-min+1) + min)
+			eo := &Token{Value: ti, Kind: NumericKind}
+			ar, err := TokenFromString(ti, 0)
 			if err != nil {
-				t.Errorf("Error in test case #%d: expected: %v, got: %v",
-					index, output[index], actualValue)
+				t.Errorf("Cannot convert number to token with NumericKind. Input: %s, expected: %v, got: %v, err: %v",
+					ti, eo, ar, err)
 			}
 		}
 	})
-	//t.Run("Parse invalid numeric tokens", func(t *testing.T) {
-	//
-	//})
+
+	// Check if all keyword-strings defined as constants
+	// can be parsed as tokens with KeywordKind
 	t.Run("Parsing keyword tokens", func(t *testing.T) {
-		input := []string{"select", "Into", "create"}
-		output := []Token{
-			{
-				Value:    "select",
-				Kind:     KeywordKind,
-				Position: 0,
-			},
-			{
-				Value:    "into",
-				Kind:     KeywordKind,
-				Position: 0,
-			},
-			{
-				Value:    "create",
-				Kind:     KeywordKind,
-				Position: 0,
-			},
-		}
-		for index, testCase := range input {
-			actualValue, err := TokenFromString(testCase, 0)
+		inputs := []string{"SELECT", "FROM", "AS", "TABLE", "CREATE", "INSERT", "INTO", "VALUES", "SHOW"}
+		for _, ti := range inputs {
+			eo := &Token{Value: ti, Kind: KeywordKind}
+			ar, err := TokenFromString(ti, 0)
 			if err != nil {
-				t.Errorf("Error in test case #%d: expected: %v, got: %v",
-					index, output[index], actualValue)
-			}
-		}
-	})
-	t.Run("Parse invalid keyword tokens", func(t *testing.T) {
-		input := []string{"selec1t", "Into2", "createz"}
-		for _, testCase := range input {
-			actualValue := ParseKeywordToken(testCase)
-			if actualValue != nil {
-				t.Errorf("Expected nil on parsing keyword: given: %v, got: %v",
-					testCase, actualValue)
+				t.Errorf("Cannot convert number to token with NumericKind. Input: %s, expected: %v, got: %v, err: %v",
+					ti, eo, ar, err)
 			}
 		}
 	})
 }
 
 func TestTokenSequenceParsing(t *testing.T) {
+	// Checks if sequense of tokens can be parsed into tokens.
+	// Uses generators for creating sequences
 	t.Run("Parse token sequence", func(t *testing.T) {
-		inputs := []string{
-			"select from test(1234)",
-			"create table integer (id int, name text)",
-			"insert into test values",
-		}
-		expectedResults := [][]*Token{
-			{
-				{
-					Value:    "select",
-					Kind:     KeywordKind,
-					Position: 0,
-				},
-				{
-					Value:    "from",
-					Kind:     KeywordKind,
-					Position: 7,
-				},
-				{
-					Value:    "test",
-					Kind:     IdentifierKind,
-					Position: 12,
-				},
-				{
-					Value:    "(",
-					Kind:     SymbolKind,
-					Position: 16,
-				},
-				{
-					Value:    "1234",
-					Kind:     NumericKind,
-					Position: 17,
-				},
-				{
-					Value:    ")",
-					Kind:     SymbolKind,
-					Position: 21,
-				},
+		rand.Seed(time.Now().UnixNano())
+		type generator func() *Token
+		g := []generator{
+			// Generates random NumericKind token
+			func() *Token {
+				min, max := -100000, 100000
+				return &Token{
+					Value: strconv.Itoa(rand.Intn(max-min+1) + min),
+					Kind:  NumericKind,
+				}
 			},
-			{
-				{
-					Value: "create",
-					Kind:  KeywordKind,
-				},
-				{
-					Value: "table",
-					Kind:  KeywordKind,
-				},
-				{
-					Value: "integer",
+			// Generates random IdentifierKind token
+			func() *Token {
+				b := make([]byte, 20)
+				for i := range b {
+					b[i] = charset[rand.Intn(len(charset))]
+				}
+				return &Token{
+					Value: string(b),
 					Kind:  IdentifierKind,
-				},
-				{
-					Value: "(",
-					Kind:  SymbolKind,
-				},
-				{
-					Value: "id",
-					Kind:  IdentifierKind,
-				},
-				{
-					Value: "int",
-					Kind:  TypeKind,
-				},
-				{
-					Value: ",",
-					Kind:  SymbolKind,
-				},
-				{
-					Value: "name",
-					Kind:  IdentifierKind,
-				},
-				{
-					Value: "text",
-					Kind:  TypeKind,
-				},
-				{
-					Value: ")",
-					Kind:  SymbolKind,
-				},
+				}
 			},
-			{
-				{
-					Value: "insert",
+			// Generates random KeywordKind token
+			func() *Token {
+				index := rand.Intn(len(*Keywords()))
+				return &Token{
+					Value: (*Keywords())[index],
 					Kind:  KeywordKind,
-				},
-				{
-					Value: "into",
-					Kind:  KeywordKind,
-				},
-				{
-					Value: "test",
-					Kind:  IdentifierKind,
-				},
-				{
-					Value: "values",
-					Kind:  KeywordKind,
-				},
+				}
+			},
+			// Generates random SymbolKind tokens
+			func() *Token {
+				// Excludes spaces
+				value := " "
+				for value == " " {
+					index := rand.Intn(len(*Symbols()))
+					value = (*Symbols())[index]
+				}
+				return &Token{
+					Value: value,
+					Kind:  SymbolKind,
+				}
+			},
+			// Generates random TypeKind tokens
+			func() *Token {
+				index := rand.Intn(len(*Types()))
+				return &Token{
+					Value: (*Types())[index],
+					Kind:  TypeKind,
+				}
 			},
 		}
-		for testCase := range inputs {
-			actualResult := *ParseTokenSequence(inputs[testCase])
-			if len(actualResult) != len(expectedResults[testCase]) {
-				t.Errorf("Function have returned unexpected number of tokens: %d (expected %d)",
-					len(actualResult), len(expectedResults[testCase]))
+
+		numberOfTests := 10000
+		sequenceLength := 20
+
+		for j := 0; j < numberOfTests; j++ {
+			generatedSequence := make([]string, sequenceLength)
+			expectedOutputSequence := make([]*Token, sequenceLength)
+			for i := range generatedSequence {
+				genIndex := rand.Intn(len(g))
+				tt := g[genIndex]()
+				expectedOutputSequence[i] = tt
+				generatedSequence[i] = tt.Value
 			}
-			for index := range actualResult {
-				if !actualResult[index].Equals(expectedResults[testCase][index]) {
-					t.Errorf("Tokens on position %d are different. Expected: %s, got: %s",
-						index+1,
-						expectedResults[testCase][index],
-						actualResult[index])
+			request := strings.Join(generatedSequence, " ")
+			// t.Logf("Generated request: %s", request)
+			actalResult := *ParseTokenSequence(request)
+			for i := range actalResult {
+				if !expectedOutputSequence[i].Equals(actalResult[i]) {
+					t.Errorf("Tokens are different on position %d. Sequence: %s, expected: %v, got: %v",
+						i, request, expectedOutputSequence, actalResult)
 				}
 			}
 		}

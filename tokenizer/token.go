@@ -9,7 +9,7 @@ import (
 	"github.com/VorobevPavel-dev/congenial-disco/utility"
 )
 
-//SQL-reserved words
+// List of reserved words
 const (
 	SelectKeyword string = "select"
 	FromKeyword   string = "from"
@@ -22,7 +22,7 @@ const (
 	ShowKeyword   string = "show"
 )
 
-// Symbol constants
+// List of constant symbols
 const (
 	SemicolonSymbol  string = ";"
 	AsteriskSymbol   string = "*"
@@ -32,6 +32,7 @@ const (
 	SpaceSymbol      string = " "
 )
 
+// List of reserver words describing type of something
 const (
 	IntType  string = "int"
 	TextType string = "text"
@@ -46,14 +47,14 @@ const (
 	SymbolKind
 	// IdentifierKind will correspond to every custom value (table name, column name, values etc...)
 	IdentifierKind
-	// TypeKind will correspond to every column type in request
+	// TypeKind will correspond to every type in request
 	TypeKind
 )
 
 type TokenKind uint
 
-var (
-	keywords = []string{
+func Keywords() *[]string {
+	return &[]string{
 		SelectKeyword,
 		FromKeyword,
 		AsKeyword,
@@ -64,7 +65,10 @@ var (
 		ValuesKeyword,
 		ShowKeyword,
 	}
-	symbols = []string{
+}
+
+func Symbols() *[]string {
+	return &[]string{
 		CommaSymbol,
 		SemicolonSymbol,
 		SpaceSymbol,
@@ -72,11 +76,20 @@ var (
 		LeftParenSymbol,
 		RightParenSymbol,
 	}
-	types = []string{
+}
+
+func Types() *[]string {
+	return &[]string{
 		IntType,
 		TextType,
 	}
-	ErrUnsupportedTokenType = errors.New("unsupported token type")
+}
+
+var (
+	symbols                       = *Symbols()
+	keywords                      = *Keywords()
+	types                         = *Types()
+	ErrUnsupportedTokenType error = errors.New("unsupported token type")
 )
 
 type Token struct {
@@ -98,9 +111,9 @@ func (t *Token) String() string {
 // inside function body (for example validate numbers, keywords, custom values)
 type Tokenizer func(string) *Token
 
-// TokenFromString is a function which will parse given string to token (no matter what kind
-// it will have)
+// TokenFromString parses given string (one word without spaces) into token (no matter what kind it will have).
 func TokenFromString(value string, cursorPosition int) (*Token, error) {
+	// Order matters.
 	tokenizers := []Tokenizer{
 		ParseNumericToken,
 		ParseTypeToken,
@@ -118,6 +131,8 @@ func TokenFromString(value string, cursorPosition int) (*Token, error) {
 	return nil, ErrUnsupportedTokenType
 }
 
+// ParseNumericToken parses given string as integer.
+// TODO: Implement support for different types on numbers
 func ParseNumericToken(value string) *Token {
 	_, err := strconv.Atoi(value)
 	if err != nil {
@@ -129,6 +144,8 @@ func ParseNumericToken(value string) *Token {
 	}
 }
 
+// ParseKeywordToken checks if given value is a reserved word.
+// If it so returns &Token with KeywordKind
 func ParseKeywordToken(value string) *Token {
 	loweredValue := strings.ToLower(value)
 	if utility.StringIsIn(loweredValue, keywords) {
@@ -140,6 +157,8 @@ func ParseKeywordToken(value string) *Token {
 	return nil
 }
 
+// ParseSymbolToken checks if given value is a reserved symbol.
+// If it so returns &Token with SymbolKind
 func ParseSymbolToken(value string) *Token {
 	if utility.StringIsIn(value, symbols) {
 		return &Token{
@@ -150,6 +169,8 @@ func ParseSymbolToken(value string) *Token {
 	return nil
 }
 
+// ParseSymbolToken checks if given value is a
+// reserved keyword describing types. If it so returns &Token with TypeKind
 func ParseTypeToken(value string) *Token {
 	loweredValue := strings.ToLower(value)
 	if utility.StringIsIn(value, types) {
@@ -161,6 +182,8 @@ func ParseTypeToken(value string) *Token {
 	return nil
 }
 
+// ParseIdentifierToken takes whole value and convert it into
+// token with IdentifierKind
 func ParseIdentifierToken(value string) *Token {
 	return &Token{
 		Value: value,
@@ -188,6 +211,10 @@ func TokenFromSymbol(value string) *Token {
 	}
 }
 
+// ParseTokenSequence converts string into slice of tokens.
+// It uses utility.DivideBySeparators function to divide string to
+// set of individual parts and after that tries to parse every part
+// as a token.
 func ParseTokenSequence(expression string) *[]*Token {
 	var (
 		startPosition = 0
@@ -200,7 +227,6 @@ func ParseTokenSequence(expression string) *[]*Token {
 			return nil
 		}
 		token.Position = startPosition
-		// FIXME: replace it with actual length (for different languages)
 		startPosition += len(token.Value)
 		// Removing spaces from token list
 		if strings.TrimSpace(token.Value) != "" {
@@ -210,6 +236,8 @@ func ParseTokenSequence(expression string) *[]*Token {
 	return &resultTokens
 }
 
+// FindToken searches for provided token in a given list of tokens.
+// Retuns -1 if token was not found. Otherwise returns its index.
 func FindToken(tokens []*Token, expected *Token) int {
 	for index := range tokens {
 		if tokens[index].Equals(expected) {

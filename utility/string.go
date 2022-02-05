@@ -4,7 +4,7 @@ package utility
 // result slice
 // Example:
 //  DivideBySeparators("this(is test)", []string{"(",")"," "})
-//	This will return []string{"this", "(", "is", " ", "test", ")"}
+//	This will return []string{"this", "(", "is", "test", ")"}
 func DivideBySeparators(line string, separators []string) []string {
 	var (
 		result       []string
@@ -14,7 +14,6 @@ func DivideBySeparators(line string, separators []string) []string {
 	lineLeft := line
 	for len(line) != 0 {
 		tempPosition, character = FindFirstOf(lineLeft, separators)
-		//TODO: Fix this. Works correctly but ugly as f
 		if tempPosition == -1 {
 			if lineLeft != "" {
 				result = append(result, lineLeft)
@@ -33,7 +32,7 @@ func DivideBySeparators(line string, separators []string) []string {
 	return nil
 }
 
-//FindFirstOf will return first position of one of elements provided
+// FindFirstOf will return first position of one of elements provided
 // in catch slice or -1 if there are no such elements in line
 func FindFirstOf(line string, catch []string) (int, string) {
 	var currentPosition int
