@@ -46,7 +46,7 @@ type Statement struct {
 	SelectStatement      *SelectStatement
 	CreateTableStatement *CreateTableQuery
 	InsertStatement      *InsertStatement
-	ShowCreateStatement  *ShowCreateStatement
+	ShowCreateStatement  *ShowCreateQuery
 	// Experimental
 	Type int
 }
@@ -93,7 +93,7 @@ func Parse(request string) *Statement {
 			Type:            Select,
 		}
 	}
-	showCreateStatement, _ := parseShowCreateStatement(tokens)
+	showCreateStatement, _ := parseShowCreateQuery(tokens)
 	if showCreateStatement != nil {
 		return &Statement{
 			ShowCreateStatement: showCreateStatement,

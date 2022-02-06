@@ -4,45 +4,68 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
+	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
-type ShowCreateStatement struct {
-	TableName tokenizer.Token
+// ShowCreateQuery is an utility function
+// describing with what query table was created
+// Syntax:
+//
+// SHOW CREATE (<table_name>);
+//
+//where <table_name> must be an IdentifierKind Token
+type ShowCreateQuery struct {
+	TableName *t.Token
 }
 
-func (scs *ShowCreateStatement) Equals(other *ShowCreateStatement) bool {
-	return scs.TableName.Equals(&other.TableName)
+// Equals method needs to be implemented in order to implement Query interface.
+// Returns true if table names of both queries are equal
+func (scs ShowCreateQuery) Equals(other *ShowCreateQuery) bool {
+	return scs.TableName.Equals(other.TableName)
 }
 
-func (scs *ShowCreateStatement) String() string {
+// String method needs to be implemented in order to implement Query interface.
+// Returns JSON object describing necessary information
+func (scs ShowCreateQuery) String() string {
 	bytes, _ := json.Marshal(scs)
 	return string(bytes)
 }
 
-func parseShowCreateStatement(tokens []*tokenizer.Token) (*ShowCreateStatement, error) {
-	// SHOW CREATE (...);
+// CreateOriginal method needs to be implemented in order to implement Query interface.
+// Returns original SQL query representing data in current Query
+func (scs ShowCreateQuery) CreateOriginal() string {
+	return fmt.Sprintf("SHOW CREATE (%s);", scs.TableName.Value)
+}
 
-	var tableName *tokenizer.Token
+// parseShowCreateQuery will process set of tokens and try to parse it like SHOW CREATE
+// query with syntax described in comments to ShowCreateQuery struct.
+// Input set must have SymbolToken with value ';' at the end in order to be parsed.
+func parseShowCreateQuery(tokens []*t.Token) (*ShowCreateQuery, error) {
+	// Validate that set of tokens has ';' SymbolKind token at the end
+	if !tokens[len(tokens)-1].Equals(t.TokenFromSymbol(";")) {
+		return nil, ErrNoSemicolonAtTheEnd
+	}
+
+	var tableName *t.Token
 
 	// Process SHOW CREATE sequence
 	currentToken := 0
 
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("show")) {
+	if !tokens[currentToken].Equals(t.TokenFromKeyword("show")) {
 		return nil, fmt.Errorf("expected SHOW keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("create")) {
+	if !tokens[currentToken].Equals(t.TokenFromKeyword("create")) {
 		return nil, fmt.Errorf("expected CREATE keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
 
 	// Process set of table name
-	if !tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
+	if !tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
 		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[currentToken].Position)
 	}
 	currentToken++
-	if tokens[currentToken].Kind != tokenizer.IdentifierKind {
+	if tokens[currentToken].Kind != t.IdentifierKind {
 		return nil, fmt.Errorf("table names are only can be identifiers, got: %s", tokens[currentToken].String())
 	} else {
 		tableName = tokens[currentToken]
@@ -50,15 +73,15 @@ func parseShowCreateStatement(tokens []*tokenizer.Token) (*ShowCreateStatement, 
 	currentToken++
 
 	//process ); sequence
-	if !tokens[currentToken].Equals(tokenizer.TokenFromSymbol(")")) {
+	if !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
 		return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[currentToken].Position)
 	}
 	currentToken++
-	if !tokens[currentToken].Equals(tokenizer.TokenFromSymbol(";")) {
+	if !tokens[currentToken].Equals(t.TokenFromSymbol(";")) {
 		return nil, fmt.Errorf("expected \";\" symbol at %d", tokens[currentToken].Position)
 	}
 	currentToken++
-	return &ShowCreateStatement{
-		TableName: *tableName,
+	return &ShowCreateQuery{
+		TableName: tableName,
 	}, nil
 }
