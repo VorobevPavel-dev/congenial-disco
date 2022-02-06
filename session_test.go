@@ -10,15 +10,11 @@ func TestCommandSequenceExecution(t *testing.T) {
 	t.Run("Check table creation sequence", func(t *testing.T) {
 		// Init session
 		session := InitSession()
-		// Check is session is not nil
-		if session == nil {
-			t.Error("Initializaed session is nil")
-		}
 		// Create table and check if table was appended to session tables map
 		// Also check if columns were appended
 		createTableCommand := "CREATE TABLE test (id INT, name TEXT)"
 		expectedNumOfColumns := 2
-		err := session.ExecuteCommand(createTableCommand)
+		err := (&session).ExecuteCommand(createTableCommand)
 		if err != nil {
 			t.Error(err)
 		}

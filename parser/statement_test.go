@@ -1,9 +1,11 @@
 package parser
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
+	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 func TestSelectStatementParsing(t *testing.T) {
@@ -14,28 +16,28 @@ func TestSelectStatementParsing(t *testing.T) {
 		}
 		expectedOutputs := []*SelectStatement{
 			{
-				Item: []*tokenizer.Token{
-					{Value: "a", Kind: tokenizer.IdentifierKind},
-					{Value: "b", Kind: tokenizer.IdentifierKind},
-					{Value: "c", Kind: tokenizer.IdentifierKind},
+				Item: []*token.Token{
+					{Value: "a", Kind: token.IdentifierKind},
+					{Value: "b", Kind: token.IdentifierKind},
+					{Value: "c", Kind: token.IdentifierKind},
 				},
-				From: tokenizer.Token{
+				From: token.Token{
 					Value: "test",
-					Kind:  tokenizer.IdentifierKind,
+					Kind:  token.IdentifierKind,
 				},
 			},
 			{
-				Item: []*tokenizer.Token{
-					{Value: "a1", Kind: tokenizer.IdentifierKind},
+				Item: []*token.Token{
+					{Value: "a1", Kind: token.IdentifierKind},
 				},
-				From: tokenizer.Token{
+				From: token.Token{
 					Value: "test",
-					Kind:  tokenizer.IdentifierKind,
+					Kind:  token.IdentifierKind,
 				},
 			},
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
 			actualResult, err := parseSelectStatement(tokenList)
 			if err != nil {
 				t.Errorf("Parsing failed on set #%d: %v",
@@ -56,7 +58,7 @@ func TestSelectStatementParsing(t *testing.T) {
 			"Select a,     b, c from",
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
 			actualResult, err := parseSelectStatement(tokenList)
 			if err == nil {
 				t.Errorf("Expected error on set #%d. Values got: %v",
@@ -73,20 +75,20 @@ func TestInsertStatementParsing(t *testing.T) {
 		}
 		expectedOutputs := []*InsertStatement{
 			{
-				Table: tokenizer.Token{
+				Table: token.Token{
 					Value: "test",
-					Kind:  tokenizer.IdentifierKind,
+					Kind:  token.IdentifierKind,
 				},
-				Values: []*tokenizer.Token{
-					{Value: "1", Kind: tokenizer.NumericKind},
-					{Value: "2", Kind: tokenizer.NumericKind},
-					{Value: "3", Kind: tokenizer.NumericKind},
+				Values: []*token.Token{
+					{Value: "1", Kind: token.NumericKind},
+					{Value: "2", Kind: token.NumericKind},
+					{Value: "3", Kind: token.NumericKind},
 				},
 				ColumnNames: nil,
 			},
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
 			actualResult, err := parseInsertIntoStatement(tokenList)
 			if err != nil {
 				t.Errorf("Parsing failed on set #%d: %v",
@@ -107,7 +109,7 @@ func TestInsertStatementParsing(t *testing.T) {
 	// 		"Select a,     b, c from",
 	// 	}
 	// 	for testCase := range inputs {
-	// 		tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+	// 		tokenList := *token.ParseTokenSequence(inputs[testCase])
 	// 		actualResult, err := parseSelectStatement(tokenList)
 	// 		if err == nil {
 	// 			t.Errorf("Expected error on set #%d. Values got: %v",
@@ -118,35 +120,46 @@ func TestInsertStatementParsing(t *testing.T) {
 }
 
 func TestCreateTableParsing(t *testing.T) {
-	t.Run("Test valid select parsing", func(t *testing.T) {
-		inputs := []string{
-			"create table test (id int, name text);",
-		}
-		expectedOutputs := []*CreateTableStatement{
-			{
-				Name: tokenizer.Token{Value: "test", Kind: tokenizer.IdentifierKind},
-				Cols: []*ColumnDefinition{
-					{
-						Name:     tokenizer.Token{Value: "id", Kind: tokenizer.IdentifierKind},
-						Datatype: tokenizer.Token{Value: "int", Kind: tokenizer.TypeKind},
-					},
-					{
-						Name:     tokenizer.Token{Value: "name", Kind: tokenizer.IdentifierKind},
-						Datatype: tokenizer.Token{Value: "text", Kind: tokenizer.TypeKind},
-					},
-				},
-			},
-		}
-		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseCreateTableStatement(tokenList)
-			if err != nil {
-				t.Errorf("Parsing failed on set #%d: %v",
-					testCase, err)
+	t.Run("Test valid create table parsing", func(t *testing.T) {
+		numberOfTests := 100
+		for i := 0; i < numberOfTests; i++ {
+			// Generating random CREATE TABLE query
+			tableName := token.GenerateRandomToken(token.IdentifierKind)
+			//Generate column definition
+			columns := make([]*ColumnDefinition, rand.Intn(100)+1)
+			for i := range columns {
+				columns[i] = &ColumnDefinition{
+					Name:     token.GenerateRandomToken(token.IdentifierKind),
+					Datatype: token.GenerateRandomToken(token.TypeKind),
+				}
 			}
-			if !actualResult.Equals(expectedOutputs[testCase]) {
-				t.Errorf("Assertion failed. Expected: %s, got: %s",
-					actualResult.String(), expectedOutputs[testCase].String())
+			inputQuery := &CreateTableQuery{
+				Name: tableName,
+				Cols: columns,
+			}
+			inputSQL := (*inputQuery).CreateOriginal()
+			// t.Logf("Generated SQL: %s", inputSQL)
+			// Test SQL parsing
+			tokens := tokenizer.ParseTokenSequence(inputSQL)
+			if tokens == nil || len(*tokens) == 0 {
+				t.Errorf("no tokens extracted from query %s", inputSQL)
+			}
+			// Try to parse token set as CREATE TABLE query
+			result, err := parseCreateTableQuery(*tokens)
+			if err != nil {
+				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+					inputSQL,
+					tokens,
+					err,
+				)
+			}
+			// Assert input data equals data in CreateTableQuery
+			if !inputQuery.Equals(result) {
+				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+					inputSQL,
+					inputQuery,
+					result,
+				)
 			}
 		}
 	})
@@ -156,8 +169,8 @@ func TestCreateTableParsing(t *testing.T) {
 			"create table test id int, name text;",
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseCreateTableStatement(tokenList)
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
+			actualResult, err := parseCreateTableQuery(tokenList)
 			if err == nil {
 				t.Errorf("Expected error on set #%d. Values got: %v",
 					testCase, actualResult)
@@ -173,14 +186,14 @@ func TestShowCreateParsing(t *testing.T) {
 		}
 		expectedOutputs := []*ShowCreateStatement{
 			{
-				TableName: tokenizer.Token{
+				TableName: token.Token{
 					Value: "test",
-					Kind:  tokenizer.IdentifierKind,
+					Kind:  token.IdentifierKind,
 				},
 			},
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
 			actualResult, err := parseShowCreateStatement(tokenList)
 			if err != nil {
 				t.Errorf("Parsing failed on set #%d: %v",
@@ -200,7 +213,7 @@ func TestShowCreateParsing(t *testing.T) {
 			"show create test",
 		}
 		for testCase := range inputs {
-			tokenList := *tokenizer.ParseTokenSequence(inputs[testCase])
+			tokenList := *token.ParseTokenSequence(inputs[testCase])
 			actualResult, err := parseShowCreateStatement(tokenList)
 			if err == nil {
 				t.Errorf("Expected error on set #%d. Values got: %v",

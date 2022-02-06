@@ -2,31 +2,49 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
+	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
+// ColumnDefinition contains information as Tokens about columns provided
+// in SQL query
 type ColumnDefinition struct {
-	Name     tokenizer.Token
-	Datatype tokenizer.Token
+	Name     *t.Token
+	Datatype *t.Token
 }
 
+// Equals method is necessary for CreateTableQuery.Equals method.
+// It compares tokens for name and type for provided column definitions.
 func (cd *ColumnDefinition) Equals(other *ColumnDefinition) bool {
-	return cd.Name.Equals(&other.Name) && cd.Datatype.Equals(&other.Datatype)
+	return cd.Name.Equals(other.Name) && cd.Datatype.Equals(other.Datatype)
 }
 
-func (ct *CreateTableStatement) String() string {
+// CreateTableQuery give aceess to requests with syntax
+//
+// CREATE TABLE <table_name> (<column_name> <column_type> [, <column_name> <column_type>])
+//
+// where <table_name>, <column_name> must be tokens with IdentifierKind, but
+// <column_type> with TypeKind
+type CreateTableQuery struct {
+	// Name of table requested to be created
+	Name *t.Token
+	// Slice of column definitions that table will contain
+	Cols []*ColumnDefinition
+}
+
+// String method needs to be implemented in order to implement Query interface.
+// Returns JSON object describing necessary information
+func (ct CreateTableQuery) String() string {
 	bytes, _ := json.Marshal(ct)
 	return string(bytes)
 }
 
-type CreateTableStatement struct {
-	Name tokenizer.Token
-	Cols []*ColumnDefinition
-}
-
-func (ct *CreateTableStatement) Equals(other *CreateTableStatement) bool {
+// Equals method needs to be implemented in order to implement Query interface.
+// Returns true if ColumnDefinitions of both queries are equal and names of reqested for
+// creation tables has no differ
+func (ct CreateTableQuery) Equals(other *CreateTableQuery) bool {
 	if len(ct.Cols) != len(other.Cols) {
 		return false
 	}
@@ -35,79 +53,93 @@ func (ct *CreateTableStatement) Equals(other *CreateTableStatement) bool {
 			return false
 		}
 	}
-	return ct.Name.Equals(&other.Name)
+	return ct.Name.Equals(other.Name)
 }
 
-func parseCreateTableStatement(tokens []*tokenizer.Token) (*CreateTableStatement, error) {
-	// CREATE TABLE table_name (
-	// 	column1 datatype,
-	// 	column2 datatype,
-	// 	column3 datatype,
-	//    ....
-	// );
-
-	var (
-		tableName *tokenizer.Token
-		columns   []*ColumnDefinition
+// CreateOriginal method needs to be implemented in order to implement Query interface.
+// Returns original SQL query representing data in current Query
+func (ct CreateTableQuery) CreateOriginal() string {
+	result := fmt.Sprintf("CREATE TABLE %s (%s %s",
+		ct.Name.Value,
+		ct.Cols[0].Name.Value,
+		ct.Cols[0].Datatype.Value,
 	)
 
-	currentToken := 0
+	for _, col := range ct.Cols[1:] {
+		result += fmt.Sprintf(", %s %s", col.Name.Value, col.Datatype.Value)
+	}
+	result += ");"
+	return result
+}
 
-	// Process CREATE TABLE sequence
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("create")) {
-		return nil, fmt.Errorf("expected CREATE keyword at %d", tokens[currentToken].Position)
+// parseCreateTableQuery will process set of tokens and try to parse it like CREATE TABLE
+// query with syntax described in comments to CreateTableQuery struct.
+// Input set must have SymbolToken with value ';' at the end in order to be parsed.
+func parseCreateTableQuery(tokens []*t.Token) (*CreateTableQuery, error) {
+	// Validate that set of tokens has ';' SymbolKind token at the end
+	if !tokens[len(tokens)-1].Equals(t.TokenFromSymbol(";")) {
+		return nil, ErrNoSemicolonAtTheEnd
 	}
-	currentToken++
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("table")) {
-		return nil, fmt.Errorf("expected TABLE keyword at %d", tokens[currentToken].Position)
+
+	var (
+		tableName *t.Token
+		columns   []*ColumnDefinition
+		cursor    int = 0
+	)
+
+	// Process "CREATE TABLE " sequence
+	if !tokens[cursor].Equals(t.TokenFromKeyword("create")) {
+		return nil, ErrExpectedToken(t.TokenFromKeyword("create"), tokens[cursor].Position)
 	}
-	currentToken++
+	cursor++
+
+	if !tokens[cursor].Equals(t.TokenFromKeyword("table")) {
+		return nil, ErrExpectedToken(t.TokenFromKeyword("table"), tokens[cursor].Position)
+	}
+	cursor++
 
 	// Process table name
-	if tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
-		return nil, fmt.Errorf("expected \"(\" keyword at %d", tokens[currentToken].Position)
+	if tokens[cursor].Kind != t.IdentifierKind {
+		return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
 	}
-	if tokens[currentToken].Kind != tokenizer.IdentifierKind {
-		return nil, fmt.Errorf("expected table name identifier at %d, got: %s", tokens[currentToken].Position, tokens[currentToken].String())
-	}
-	tableName = tokens[currentToken]
-	currentToken++
+	tableName = tokens[cursor]
+	cursor++
 
-	// Process set of column definitions
-	if !tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
-		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[currentToken].Position)
+	if !tokens[cursor].Equals(t.TokenFromSymbol("(")) {
+		return nil, ErrExpectedToken(t.TokenFromSymbol("("), tokens[cursor].Position)
 	}
-	currentToken++
-	for !tokens[currentToken].Equals(tokenizer.TokenFromSymbol(")")) {
-		if currentToken == len(tokens)-1 {
-			return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[currentToken].Position)
-		}
-		if tokens[currentToken].Equals(tokenizer.TokenFromSymbol(",")) {
-			currentToken++
-			continue
-		}
-		// Process column name
-		if tokens[currentToken].Kind != tokenizer.IdentifierKind {
-			return nil, fmt.Errorf("column names are only can be identifiers, got: %s", tokens[currentToken].String())
-		}
-		columnName := tokens[currentToken]
-		currentToken++
+	colDefStartPos := cursor
+	cursor++
+	colDefEndPos := t.FindToken(tokens, t.TokenFromSymbol(")"))
 
-		// Process column type
-		if tokens[currentToken].Kind != tokenizer.TypeKind {
-			return nil, fmt.Errorf("expected type of column, got: %s", tokens[currentToken].String())
-		}
-		columnType := tokens[currentToken]
-		columns = append(columns, &ColumnDefinition{Name: *columnName, Datatype: *columnType})
-		currentToken++
-	}
-	currentToken++
-	if currentToken == len(tokens) {
-		return nil, fmt.Errorf("expected \";\" symbol at the end of request")
+	if colDefEndPos == colDefStartPos {
+		return nil, errors.New("no columns specified")
 	}
 
-	return &CreateTableStatement{
-		Name: *tableName,
+	for cursor = colDefStartPos + 1; cursor < colDefEndPos; cursor += 2 {
+		if tokens[cursor].Equals(t.TokenFromSymbol(",")) {
+			cursor++
+		}
+
+		tempColDef := &ColumnDefinition{}
+		if tokens[cursor].Kind != t.IdentifierKind {
+			return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
+		}
+		tempColDef.Name = tokens[cursor]
+		if tokens[cursor+1].Kind != t.TypeKind {
+			return nil, ErrInvalidTokenKind(tokens[cursor], t.TypeKind)
+		}
+		tempColDef.Datatype = tokens[cursor+1]
+
+		columns = append(columns, tempColDef)
+		if tokens[cursor+2].Equals(t.TokenFromSymbol(")")) {
+			break
+		} else if !tokens[cursor+2].Equals(t.TokenFromSymbol(",")) {
+			return nil, ErrExpectedToken(t.TokenFromSymbol(","), tokens[cursor+2].Position)
+		}
+	}
+	return &CreateTableQuery{
+		Name: tableName,
 		Cols: columns,
 	}, nil
 }

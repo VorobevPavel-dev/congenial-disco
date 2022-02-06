@@ -3,6 +3,7 @@ package tokenizer
 import (
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"strconv"
 	"strings"
 
@@ -36,6 +37,8 @@ const (
 const (
 	IntType  string = "int"
 	TextType string = "text"
+	charset  string = "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 const (
@@ -50,6 +53,24 @@ const (
 	// TypeKind will correspond to every type in request
 	TypeKind
 )
+
+// KindToString returns string representation of token kind
+func KindToString(kind int) string {
+	switch kind {
+	case 0:
+		return "number"
+	case 1:
+		return "Keyword"
+	case 2:
+		return "symbol"
+	case 3:
+		return "identifier"
+	case 4:
+		return "type"
+	default:
+		return "unknown"
+	}
+}
 
 type TokenKind uint
 
@@ -245,4 +266,48 @@ func FindToken(tokens []*Token, expected *Token) int {
 		}
 	}
 	return -1
+}
+
+func GenerateRandomToken(kind TokenKind) *Token {
+	switch int(kind) {
+	case 0:
+		min, max := -100000, 100000
+		return &Token{
+			Value: strconv.Itoa(rand.Intn(max-min+1) + min),
+			Kind:  NumericKind,
+		}
+	case 1:
+		index := rand.Intn(len(*Keywords()))
+		return &Token{
+			Value: (*Keywords())[index],
+			Kind:  KeywordKind,
+		}
+	case 2:
+		// Excludes spaces
+		value := " "
+		for value == " " {
+			index := rand.Intn(len(*Symbols()))
+			value = (*Symbols())[index]
+		}
+		return &Token{
+			Value: value,
+			Kind:  SymbolKind,
+		}
+	case 3:
+		b := make([]byte, 20)
+		for i := range b {
+			b[i] = charset[rand.Intn(len(charset))]
+		}
+		return &Token{
+			Value: string(b),
+			Kind:  IdentifierKind,
+		}
+	case 4:
+		index := rand.Intn(len(*Types()))
+		return &Token{
+			Value: (*Types())[index],
+			Kind:  TypeKind,
+		}
+	}
+	return nil
 }

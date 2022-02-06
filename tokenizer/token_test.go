@@ -8,9 +8,6 @@ import (
 	"time"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz" +
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
 func TestTokenParsing(t *testing.T) {
 	// Generates numberOfTests numbers, converts them to strings and
 	// tries to represent it as list of tokens
@@ -50,67 +47,15 @@ func TestTokenSequenceParsing(t *testing.T) {
 	// Uses generators for creating sequences
 	t.Run("Parse token sequence", func(t *testing.T) {
 		rand.Seed(time.Now().UnixNano())
-		type generator func() *Token
-		g := []generator{
-			// Generates random NumericKind token
-			func() *Token {
-				min, max := -100000, 100000
-				return &Token{
-					Value: strconv.Itoa(rand.Intn(max-min+1) + min),
-					Kind:  NumericKind,
-				}
-			},
-			// Generates random IdentifierKind token
-			func() *Token {
-				b := make([]byte, 20)
-				for i := range b {
-					b[i] = charset[rand.Intn(len(charset))]
-				}
-				return &Token{
-					Value: string(b),
-					Kind:  IdentifierKind,
-				}
-			},
-			// Generates random KeywordKind token
-			func() *Token {
-				index := rand.Intn(len(*Keywords()))
-				return &Token{
-					Value: (*Keywords())[index],
-					Kind:  KeywordKind,
-				}
-			},
-			// Generates random SymbolKind tokens
-			func() *Token {
-				// Excludes spaces
-				value := " "
-				for value == " " {
-					index := rand.Intn(len(*Symbols()))
-					value = (*Symbols())[index]
-				}
-				return &Token{
-					Value: value,
-					Kind:  SymbolKind,
-				}
-			},
-			// Generates random TypeKind tokens
-			func() *Token {
-				index := rand.Intn(len(*Types()))
-				return &Token{
-					Value: (*Types())[index],
-					Kind:  TypeKind,
-				}
-			},
-		}
-
 		numberOfTests := 10000
 		sequenceLength := 20
 
 		for j := 0; j < numberOfTests; j++ {
+			kind := rand.Intn(5)
 			generatedSequence := make([]string, sequenceLength)
 			expectedOutputSequence := make([]*Token, sequenceLength)
 			for i := range generatedSequence {
-				genIndex := rand.Intn(len(g))
-				tt := g[genIndex]()
+				tt := GenerateRandomToken(TokenKind(kind))
 				expectedOutputSequence[i] = tt
 				generatedSequence[i] = tt.Value
 			}

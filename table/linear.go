@@ -25,7 +25,7 @@ func (c *Cell) AsInt() int64 {
 type LinearTable struct {
 	Columns  []*parser.ColumnDefinition
 	Elements *[][]Cell
-	Name     tokenizer.Token
+	Name     *tokenizer.Token
 }
 
 func (lt LinearTable) IsInitialized() bool {
@@ -35,7 +35,7 @@ func (lt LinearTable) IsInitialized() bool {
 // Create table will initialize columns inside fresh linear table
 // It will take parser.ColumnDefinitions from request and append them to LinearTable.Columns slice
 // Returns table name if all happened without errors
-func (lt LinearTable) Create(req *parser.CreateTableStatement) (string, error) {
+func (lt LinearTable) Create(req *parser.CreateTableQuery) (string, error) {
 	lt.Columns = append(lt.Columns, req.Cols...)
 	lt.Name = req.Name
 	return lt.Name.Value, nil

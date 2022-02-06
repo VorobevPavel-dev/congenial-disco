@@ -11,7 +11,7 @@ type Element interface {
 
 type Table interface {
 	IsInitialized() bool
-	Create(req *parser.CreateTableStatement) (string, error)
+	Create(req *parser.CreateTableQuery) (string, error)
 	Select(req *parser.SelectStatement) (*[][]Element, error)
 	Insert(req *parser.InsertStatement) error
 	ShowCreate() string
