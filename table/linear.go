@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
@@ -31,8 +32,50 @@ func (lt LinearTable) Create(req *parser.CreateTableQuery) (Table, string, error
 	return Table(lt), lt.Name.Value, nil
 }
 
-func (lt LinearTable) Select(req *parser.SelectStatement) (*[][]tokenizer.Token, error) {
-	return nil, nil
+func (lt LinearTable) Select(req *parser.SelectQuery) ([][]*tokenizer.Token, error) {
+	tableColumns := lt.GetColumnsNames()
+	// Build slice of indexes of columns to select
+	indexes := []int{}
+	for _, columnToSelect := range req.Columns {
+		// Assert that all columns in request are actually inside table
+		if !utility.StringIsIn(columnToSelect.Value, tableColumns) {
+			return nil, fmt.Errorf("column with name %s is not represented inside table (actual columns: [%s])",
+				columnToSelect,
+				lt.GetColumns(),
+			)
+		}
+		indexes = append(indexes, utility.FindStringInSlice(tableColumns, columnToSelect.Value))
+	}
+
+	// Sort indexes for pretty-print
+	sort.Slice(indexes, func(i, j int) bool {
+		return indexes[i] < indexes[j]
+	})
+
+	header := make([]*tokenizer.Token, len(indexes))
+	for i, extractedHeaderPosition := range indexes {
+		header[i] = lt.Columns[extractedHeaderPosition].Name
+	}
+
+	// Go around table
+	result := [][]*tokenizer.Token{}
+	result = append(result, header)
+	for _, currentRow := range lt.Elements {
+		nullCounter := 0
+		extractedValues := make([]*tokenizer.Token, len(lt.Columns))
+		for i, columnIndex := range indexes {
+			value := currentRow[columnIndex]
+			if value.Value == "null" {
+				nullCounter++
+			}
+			extractedValues[i] = currentRow[columnIndex]
+			if nullCounter == len(indexes) {
+				continue
+			}
+		}
+		result = append(result, extractedValues)
+	}
+	return result, nil
 }
 
 func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (Table, error) {

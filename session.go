@@ -8,6 +8,7 @@ import (
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
+	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 // Session is a struct describing tables inside current run of engine
@@ -61,8 +62,14 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 		if err != nil {
 			return fmt.Sprint(err), err
 		}
+	case parser.SelectType:
+		result, err := s.executeSelect(statement)
+		if err != nil {
+			return fmt.Sprint(err), err
+		}
+		return result, nil
 	default:
-		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO")
+		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
 	}
 	return "", nil
 }
@@ -89,4 +96,29 @@ func (s *Session) executeInsert(statement *parser.Statement) error {
 	}
 	s.tables[desiredTableName] = t
 	return nil
+}
+
+func (s *Session) executeSelect(statement *parser.Statement) (string, error) {
+	desiredTableName := statement.SelectStatement.From.Value
+	if _, ok := s.tables[desiredTableName]; !ok {
+		return "", fmt.Errorf("table %s does not exist", desiredTableName)
+	}
+	result, err := s.tables[desiredTableName].Select(statement.SelectStatement)
+	if err != nil {
+		return "", err
+	}
+	return formatCSV(result), nil
+}
+
+func formatCSV(input [][]*tokenizer.Token) string {
+	var result string
+	for _, line := range input {
+		// extract values
+		values := make([]string, len(line))
+		for i := range values {
+			values[i] = line[i].Value
+		}
+		result += strings.Join(values, ",") + "\n"
+	}
+	return result
 }

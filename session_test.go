@@ -7,7 +7,6 @@ import (
 )
 
 func TestCommandSequenceExecution(t *testing.T) {
-	// Init session
 	session := InitSession()
 	t.Run("Check table creation sequence", func(t *testing.T) {
 		// Create table and check if table was appended to session tables map
@@ -43,6 +42,13 @@ func TestCommandSequenceExecution(t *testing.T) {
 		if session.tables["test"].Count() != 2 {
 			t.Errorf("expected only two rows after insertion, got %d", session.tables["test"].Count())
 		}
+	})
+	t.Run("Check table selection", func(t *testing.T) {
+		result, err := session.ExecuteCommand("SELECT (id, name) FROM test;")
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("Result of select: \n%s", result)
 	})
 	t.Logf("State after all tests: %s", session.ToString())
 }

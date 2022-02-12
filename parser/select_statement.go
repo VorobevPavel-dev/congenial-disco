@@ -2,78 +2,113 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
+	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
-type SelectStatement struct {
-	Item []*tokenizer.Token `json:"item"`
-	From tokenizer.Token    `json:"from"`
+// SelectQuery give access to requests with syntax
+//
+// SELECT (<column_name1>[...]) FROM <table_name>;
+//
+// where <column_nameX> and <table_name> must be tokens with IdentifierKind
+type SelectQuery struct {
+	Columns []*t.Token `json:"item"`
+	From    *t.Token   `json:"from"`
 }
 
-func (slct *SelectStatement) String() string {
+// String method needs to be implemented in order to implement Query interface.
+// Returns JSON object describing necessary information
+func (slct SelectQuery) String() string {
 	bytes, _ := json.Marshal(slct)
 	return string(bytes)
 }
-func (slct *SelectStatement) Equals(other *SelectStatement) bool {
-	if len(slct.Item) != len(other.Item) {
+
+// Equals method needs to be implemented in order to implement Query interface.
+// Returns true if tokens for columns and table names are equal.
+func (slct SelectQuery) Equals(other *SelectQuery) bool {
+	if len(slct.Columns) != len(other.Columns) {
 		return false
 	}
-	for index := range slct.Item {
-		if !slct.Item[index].Equals(other.Item[index]) {
+	for index := range slct.Columns {
+		if !slct.Columns[index].Equals(other.Columns[index]) {
 			return false
 		}
 	}
-	return slct.From.Equals(&other.From)
+	return slct.From.Equals(other.From)
 }
 
-func parseSelectStatement(tokens []*tokenizer.Token) (*SelectStatement, error) {
-	// SELECT ... FROM table;
+// CreateOriginal method needs to be implemented in order to implement Query interface.
+// Returns original SQL query representing data in current Query
+func (slct SelectQuery) CreateOriginal() string {
+	result := fmt.Sprintf("SELECT %s FROM %s;",
+		t.Bracketize(slct.Columns),
+		slct.From.Value,
+	)
+	return result
+}
 
-	var items []*tokenizer.Token
+func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
+	// Validate that set of tokens has ';' SymbolKind token at the end
+	if !tokens[len(tokens)-1].Equals(t.TokenFromSymbol(";")) {
+		return nil, ErrNoSemicolonAtTheEnd
+	}
 
-	//Process SELECT keyword
-	if !tokens[0].Equals(tokenizer.TokenFromKeyword("select")) {
+	var (
+		columns   []*t.Token
+		tableName *t.Token
+		cursor    int = 0
+	)
+
+	// Process SELECT keyword
+	if !tokens[cursor].Equals(t.TokenFromKeyword("select")) {
 		return nil, fmt.Errorf("expected SELECT keyword at %d", tokens[0].Position)
 	}
+	cursor++
 
-	//Process columns
-	//	Get FROM token position
-	fromPosition := tokenizer.FindToken(tokens, tokenizer.TokenFromKeyword("from"))
-	if fromPosition == -1 {
-		return nil, fmt.Errorf("cannot find FROM keword in request")
+	// Process set of columns if any were specified
+	if !tokens[cursor].Equals(t.TokenFromSymbol("(")) {
+		return nil, ErrExpectedToken(t.TokenFromSymbol("("), tokens[cursor].Position)
 	}
-	//	Parse identifiers in loop
-	for _, item := range tokens[1:fromPosition] {
-		if item.Equals(tokenizer.TokenFromSymbol(",")) ||
-			item.Equals(tokenizer.TokenFromSymbol(" ")) {
-			continue
+	colDefStartPos := cursor
+	cursor++
+	colDefEndPos := t.FindToken(tokens, t.TokenFromSymbol(")"))
+	if colDefEndPos == colDefStartPos {
+		return nil, errors.New("no columns specified")
+	}
+
+	for cursor = colDefStartPos + 1; cursor < colDefEndPos; cursor++ {
+		if tokens[cursor].Equals(t.TokenFromSymbol(",")) {
+			cursor++
 		}
-		// if current token is a name
-		if item.Kind != tokenizer.IdentifierKind {
-			return nil, fmt.Errorf("only Identifiers allowed to be SELECTed")
+		if tokens[cursor].Kind != t.IdentifierKind {
+			return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
 		}
-		items = append(items, item)
+		columns = append(columns, tokens[cursor])
 	}
-	if items == nil {
-		return nil, fmt.Errorf("no identifiers provided for select")
+	cursor++
+
+	// Process FROM keyword
+	if !tokens[cursor].Equals(t.TokenFromKeyword("from")) {
+		return nil, fmt.Errorf("expected FROM keyword at %d", tokens[0].Position)
+	}
+	cursor++
+
+	// Process table name
+	if tokens[cursor].Kind != t.IdentifierKind {
+		return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
+	}
+	tableName = tokens[cursor]
+	cursor++
+
+	// Process ";" symbol at the end
+	if !tokens[cursor].Equals(t.TokenFromSymbol(";")) {
+		return nil, ErrExpectedToken(t.TokenFromSymbol(";"), tokens[cursor].Position)
 	}
 
-	//Process table name
-	//	Check if ";" exists
-	endPosition := tokenizer.FindToken(tokens, tokenizer.TokenFromSymbol(";"))
-	if endPosition == -1 {
-		return nil, fmt.Errorf("cannot find \";\"  in the end of request")
-	}
-	//	Check if there is a token between FROM and ; tokens
-	if endPosition == fromPosition {
-		return nil, fmt.Errorf("no table name provided in request")
-	}
-	tableToken := tokens[fromPosition+1]
-
-	return &SelectStatement{
-		Item: items,
-		From: *tableToken,
+	return &SelectQuery{
+		Columns: columns,
+		From:    tableName,
 	}, nil
 }

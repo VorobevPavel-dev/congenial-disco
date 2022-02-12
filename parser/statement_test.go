@@ -16,42 +16,39 @@ func getRandomFromKinds(kinds ...token.TokenKind) token.TokenKind {
 
 func TestSelectStatementParsing(t *testing.T) {
 	t.Run("Test valid select parsing", func(t *testing.T) {
-		inputs := []string{
-			"Select a,b,c from test;",
-			"select a1 from test;",
-		}
-		expectedOutputs := []*SelectStatement{
-			{
-				Item: []*token.Token{
-					{Value: "a", Kind: token.IdentifierKind},
-					{Value: "b", Kind: token.IdentifierKind},
-					{Value: "c", Kind: token.IdentifierKind},
-				},
-				From: token.Token{
-					Value: "test",
-					Kind:  token.IdentifierKind,
-				},
-			},
-			{
-				Item: []*token.Token{
-					{Value: "a1", Kind: token.IdentifierKind},
-				},
-				From: token.Token{
-					Value: "test",
-					Kind:  token.IdentifierKind,
-				},
-			},
-		}
-		for testCase := range inputs {
-			tokenList := *token.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseSelectStatement(tokenList)
-			if err != nil {
-				t.Errorf("Parsing failed on set #%d: %v",
-					testCase, err)
+		// Generate valid select parsing
+		numberOfTests := 100
+		for i := 0; i < numberOfTests; i++ {
+			tempTableName := token.GenerateRandomToken(token.IdentifierKind)
+			columnsCount := rand.Intn(100) + 1
+			columns := make([]*token.Token, columnsCount)
+			for i := range columns {
+				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
 			}
-			if !actualResult.Equals(expectedOutputs[testCase]) {
-				t.Errorf("Assertion failed. Expected: %s, got: %s",
-					actualResult.String(), expectedOutputs[testCase].String())
+			inputQuery := &SelectQuery{
+				Columns: columns,
+				From:    tempTableName,
+			}
+			inputSQL := inputQuery.CreateOriginal()
+			// t.Logf("Generated SQL: %s", inputSQL)
+			tokens := token.ParseTokenSequence(inputSQL)
+			if tokens == nil || len(*tokens) == 0 {
+				t.Errorf("no tokens extracted from query %s", inputSQL)
+			}
+			result, err := parseSelectStatement(*tokens)
+			if err != nil {
+				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+					inputSQL,
+					tokens,
+					err,
+				)
+			}
+			if !inputQuery.Equals(result) {
+				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+					inputSQL,
+					inputQuery,
+					result,
+				)
 			}
 		}
 	})

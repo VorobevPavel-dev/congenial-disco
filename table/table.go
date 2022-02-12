@@ -8,7 +8,7 @@ import (
 type Table interface {
 	IsInitialized() bool
 	Create(req *parser.CreateTableQuery) (Table, string, error)
-	Select(req *parser.SelectStatement) (*[][]tokenizer.Token, error)
+	Select(req *parser.SelectQuery) ([][]*tokenizer.Token, error)
 	Insert(req *parser.InsertIntoQuery) (Table, error)
 	ShowCreate() string
 	GetColumns() string

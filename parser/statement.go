@@ -43,7 +43,7 @@ const (
 )
 
 type Statement struct {
-	SelectStatement      *SelectStatement
+	SelectStatement      *SelectQuery
 	CreateTableStatement *CreateTableQuery
 	InsertStatement      *InsertIntoQuery
 	ShowCreateStatement  *ShowCreateQuery
