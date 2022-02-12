@@ -2,17 +2,13 @@ package table
 
 import (
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
+	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
-
-type Element interface {
-	AsString() string
-	AsInt() (int64, error)
-}
 
 type Table interface {
 	IsInitialized() bool
 	Create(req *parser.CreateTableQuery) (Table, string, error)
-	Select(req *parser.SelectStatement) (*[][]Element, error)
+	Select(req *parser.SelectStatement) (*[][]tokenizer.Token, error)
 	Insert(req *parser.InsertIntoQuery) (Table, error)
 	ShowCreate() string
 	GetColumns() string

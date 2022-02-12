@@ -31,7 +31,7 @@ func (lt LinearTable) Create(req *parser.CreateTableQuery) (Table, string, error
 	return Table(lt), lt.Name.Value, nil
 }
 
-func (lt LinearTable) Select(req *parser.SelectStatement) (*[][]Element, error) {
+func (lt LinearTable) Select(req *parser.SelectStatement) (*[][]tokenizer.Token, error) {
 	return nil, nil
 }
 

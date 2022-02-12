@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,40 +27,66 @@ func (s *Session) CountTables() int {
 	return len(s.tables)
 }
 
+// ToString returns current state of session in JSON format where keys are table names and values are
+// number of rows inside.
+func (s *Session) ToString() string {
+	mapping := make(map[string]int)
+	for name, table := range s.tables {
+		mapping[name] = table.Count()
+	}
+	data, _ := json.Marshal(mapping)
+	return string(data)
+}
+
 // ExecuteCommand parses input string into struct implementing Query interface
 // and executes query in engine. Return
-//		table.Table. If data inside table was modified returned table must replace old version in s.tables map
 //		string. If request returns string value it will be returned here
-//		*[][]table.Element
 //		error
-func (s *Session) ExecuteCommand(request string) (table.Table, string, *[][]table.Element, error) {
+func (s *Session) ExecuteCommand(request string) (string, error) {
 	statement := parser.Parse(strings.ToLower(request))
 	switch statement.Type {
 	case parser.ShowCreateType:
 		if val, ok := s.tables[statement.ShowCreateStatement.TableName.Value]; ok {
-			return nil, val.ShowCreate(), nil, nil
+			return val.ShowCreate(), nil
 		}
 	case parser.CreateTableType:
-		t := table.Table(table.LinearTable{})
-		t, tn, err := t.Create(statement.CreateTableStatement)
+		err := s.executeCreate(statement)
 		if err != nil {
-			return nil, "", nil, err
+			return fmt.Sprint(err), err
+		} else {
+			return "ok", nil
 		}
-		s.tables[tn] = t
-		return nil, tn, nil, nil
 	case parser.InsertType:
-		desiredTableName := statement.InsertStatement.Table.Value
-		// Check if needed table actually exists
-		if _, ok := s.tables[desiredTableName]; !ok {
-			return nil, "", nil, fmt.Errorf("table %s does not exist", desiredTableName)
-		}
-		t, err := s.tables[desiredTableName].Insert(statement.InsertStatement)
+		err := s.executeInsert(statement)
 		if err != nil {
-			return nil, "", nil, err
+			return fmt.Sprint(err), err
 		}
-		s.tables[desiredTableName] = t
 	default:
-		return nil, "", nil, errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE ()")
+		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO")
 	}
-	return nil, "", nil, nil
+	return "", nil
+}
+
+func (s *Session) executeCreate(statement *parser.Statement) error {
+	t := table.Table(table.LinearTable{})
+	t, tn, err := t.Create(statement.CreateTableStatement)
+	if err != nil {
+		return err
+	}
+	s.tables[tn] = t
+	return nil
+}
+
+func (s *Session) executeInsert(statement *parser.Statement) error {
+	desiredTableName := statement.InsertStatement.Table.Value
+	// Check if needed table actually exists
+	if _, ok := s.tables[desiredTableName]; !ok {
+		return fmt.Errorf("table %s does not exist", desiredTableName)
+	}
+	t, err := s.tables[desiredTableName].Insert(statement.InsertStatement)
+	if err != nil {
+		return err
+	}
+	s.tables[desiredTableName] = t
+	return nil
 }

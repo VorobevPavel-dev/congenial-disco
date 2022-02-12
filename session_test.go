@@ -14,7 +14,7 @@ func TestCommandSequenceExecution(t *testing.T) {
 		// Also check if columns were appended
 		createTableCommand := "CREATE TABLE test (id INT, name TEXT);"
 		expectedNumOfColumns := 2
-		_, _, _, err := session.ExecuteCommand(createTableCommand)
+		_, err := session.ExecuteCommand(createTableCommand)
 		if err != nil {
 			t.Error(err)
 		}
@@ -29,20 +29,20 @@ func TestCommandSequenceExecution(t *testing.T) {
 		t.Logf("Created table has columns: %s", session.tables["test"].GetColumns())
 	})
 	t.Run("Check table insertion", func(t *testing.T) {
-		_, _, _, err := session.ExecuteCommand("INSERT INTO test VALUES (1, test);")
+		_, err := session.ExecuteCommand("INSERT INTO test VALUES (1, test);")
 		if err != nil {
 			t.Error(err)
 		}
 		if session.tables["test"].Count() != 1 {
 			t.Errorf("expected only one row after insertion, got %d", session.tables["test"].Count())
 		}
-		_, _, _, err = session.ExecuteCommand("INSERT INTO test (id, name) VALUES (1, test_value);")
+		_, err = session.ExecuteCommand("INSERT INTO test (id, name) VALUES (1, test_value);")
 		if err != nil {
 			t.Error(err)
 		}
 		if session.tables["test"].Count() != 2 {
 			t.Errorf("expected only two rows after insertion, got %d", session.tables["test"].Count())
 		}
-
 	})
+	t.Logf("State after all tests: %s", session.ToString())
 }
