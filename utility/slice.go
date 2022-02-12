@@ -33,3 +33,20 @@ func StringSliceEqual(slice []string, other []string) bool {
 	}
 	return true
 }
+
+func FindStringInSlice(slice []string, element string) int {
+	for i := range slice {
+		if slice[i] == element {
+			return i
+		}
+	}
+	return -1
+}
+
+func StringSliceToString(slice []string) string {
+	result := "["
+	for _, elem := range slice {
+		result += fmt.Sprintf("%s, ", elem)
+	}
+	return result[:len(result)-2] + "]"
+}
