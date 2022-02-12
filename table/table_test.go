@@ -12,12 +12,11 @@ func TestLinearTable(t *testing.T) {
 		statement := parser.Parse(request)
 		if statement == nil {
 			t.Error("Unable to parse input string as any kind of requests")
+		} else if statement.CreateTableStatement == nil {
+			t.Error("Unable to parse input string as CREATE TABLE request")
 		}
-		if statement.CreateTableStatement == nil {
-			t.Error("Unable to parse iwnput string as CREATE TABLE request")
-		}
-		table := &LinearTable{}
-		_, _ = table.Create(statement.CreateTableStatement)
+		table := Table(&LinearTable{})
+		table, _, _ = table.Create(statement.CreateTableStatement)
 		if !table.IsInitialized() {
 			t.Error("Table has no columns inside after creation request")
 		}

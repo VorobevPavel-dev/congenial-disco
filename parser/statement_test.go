@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
@@ -142,7 +141,7 @@ func TestCreateTableParsing(t *testing.T) {
 			inputSQL := (*inputQuery).CreateOriginal()
 			// t.Logf("Generated SQL: %s", inputSQL)
 			// Test SQL parsing
-			tokens := tokenizer.ParseTokenSequence(inputSQL)
+			tokens := token.ParseTokenSequence(inputSQL)
 			if tokens == nil || len(*tokens) == 0 {
 				t.Errorf("no tokens extracted from query %s", inputSQL)
 			}
@@ -192,7 +191,7 @@ func TestShowCreateParsing(t *testing.T) {
 			}
 			inputSQL := inputQuery.CreateOriginal()
 			// t.Logf("Generated SQL: %s", inputSQL)
-			tokens := tokenizer.ParseTokenSequence(inputSQL)
+			tokens := token.ParseTokenSequence(inputSQL)
 			if tokens == nil || len(*tokens) == 0 {
 				t.Errorf("no tokens extracted from query %s", inputSQL)
 			}

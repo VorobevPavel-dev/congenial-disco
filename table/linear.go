@@ -35,10 +35,13 @@ func (lt LinearTable) IsInitialized() bool {
 // Create table will initialize columns inside fresh linear table
 // It will take parser.ColumnDefinitions from request and append them to LinearTable.Columns slice
 // Returns table name if all happened without errors
-func (lt LinearTable) Create(req *parser.CreateTableQuery) (string, error) {
-	lt.Columns = append(lt.Columns, req.Cols...)
+func (lt LinearTable) Create(req *parser.CreateTableQuery) (Table, string, error) {
+	lt.Columns = make([]*parser.ColumnDefinition, len(req.Cols))
+	for i := range req.Cols {
+		lt.Columns[i] = req.Cols[i]
+	}
 	lt.Name = req.Name
-	return lt.Name.Value, nil
+	return Table(lt), lt.Name.Value, nil
 }
 
 func (lt LinearTable) Select(req *parser.SelectStatement) (*[][]Element, error) {

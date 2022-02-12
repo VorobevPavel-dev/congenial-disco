@@ -67,9 +67,8 @@ func parseShowCreateQuery(tokens []*t.Token) (*ShowCreateQuery, error) {
 	currentToken++
 	if tokens[currentToken].Kind != t.IdentifierKind {
 		return nil, fmt.Errorf("table names are only can be identifiers, got: %s", tokens[currentToken].String())
-	} else {
-		tableName = tokens[currentToken]
 	}
+	tableName = tokens[currentToken]
 	currentToken++
 
 	//process ); sequence

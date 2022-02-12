@@ -36,10 +36,10 @@ var (
 )
 
 const (
-	CreateTable int = iota
-	Select
-	Insert
-	ShowCreate
+	CreateTableType int = iota
+	SelectType
+	InsertType
+	ShowCreateType
 )
 
 type Statement struct {
@@ -76,28 +76,28 @@ func Parse(request string) *Statement {
 	if createStatement != nil {
 		return &Statement{
 			CreateTableStatement: createStatement,
-			Type:                 CreateTable,
+			Type:                 CreateTableType,
 		}
 	}
 	insertStatement, _ := parseInsertIntoStatement(tokens)
 	if insertStatement != nil {
 		return &Statement{
 			InsertStatement: insertStatement,
-			Type:            Insert,
+			Type:            InsertType,
 		}
 	}
 	selectStatement, _ := parseSelectStatement(tokens)
 	if selectStatement != nil {
 		return &Statement{
 			SelectStatement: selectStatement,
-			Type:            Select,
+			Type:            SelectType,
 		}
 	}
 	showCreateStatement, _ := parseShowCreateQuery(tokens)
 	if showCreateStatement != nil {
 		return &Statement{
 			ShowCreateStatement: showCreateStatement,
-			Type:                ShowCreate,
+			Type:                ShowCreateType,
 		}
 	}
 	return nil

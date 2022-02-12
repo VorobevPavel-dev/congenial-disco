@@ -12,9 +12,9 @@ func TestCommandSequenceExecution(t *testing.T) {
 		session := InitSession()
 		// Create table and check if table was appended to session tables map
 		// Also check if columns were appended
-		createTableCommand := "CREATE TABLE test (id INT, name TEXT)"
+		createTableCommand := "CREATE TABLE test (id INT, name TEXT);"
 		expectedNumOfColumns := 2
-		err := (&session).ExecuteCommand(createTableCommand)
+		_, _, err := session.ExecuteCommand(createTableCommand)
 		if err != nil {
 			t.Error(err)
 		}
