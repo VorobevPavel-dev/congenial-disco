@@ -4,21 +4,34 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
+	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
-type InsertStatement struct {
-	Table       tokenizer.Token
-	ColumnNames []*tokenizer.Token
-	Values      []*tokenizer.Token
+// InsertIntoQuery give access to requests with syntax
+//
+// INSERT INTO <table_name> [(<column_name1>,...,<column_nameN>)] VALUES (<value1,...,<valueN>);
+//
+// where <table_name>, <column_nameX> must be token with IdentifierKind,
+// <valueX> can be only NumberKind or IdentifierKind.
+// Number of columns must be exact same as number of provided values.
+// If no <column_name> specified then number of <valueX> must be exact as number of columns in target table.
+type InsertIntoQuery struct {
+	Table       t.Token
+	ColumnNames []*t.Token
+	Values      []*t.Token
 }
 
-func (ins *InsertStatement) String() string {
+// String method needs to be implemented in order to implement Query interface.
+// Returns JSON object describing necessary information
+func (ins InsertIntoQuery) String() string {
 	bytes, _ := json.Marshal(ins)
 	return string(bytes)
 }
 
-func (ins *InsertStatement) Equals(other *InsertStatement) bool {
+// Equals method needs to be implemented in order to implement Query interface.
+// Returns true if tokens for values, column names and table are same as in other
+// InsertIntoQuery.
+func (ins InsertIntoQuery) Equals(other *InsertIntoQuery) bool {
 	if len(ins.Values) != len(other.Values) {
 		return false
 	}
@@ -41,46 +54,57 @@ func (ins *InsertStatement) Equals(other *InsertStatement) bool {
 	return ins.Table.Equals(&other.Table)
 }
 
-func parseInsertIntoStatement(tokens []*tokenizer.Token) (*InsertStatement, error) {
+// CreateOriginal method needs to be implemented in order to implement Query interface.
+// Returns original SQL query representing data in current Query.
+func (ins InsertIntoQuery) CreateOriginal() string {
+	result := fmt.Sprintf("INSERT INTO %s %s VALUES %s;",
+		ins.Table.Value,
+		t.Bracketize(ins.ColumnNames),
+		t.Bracketize(ins.Values),
+	)
+	return result
+}
+
+func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	var (
-		columnNames []*tokenizer.Token
-		values      []*tokenizer.Token
-		table       tokenizer.Token
+		columnNames []*t.Token
+		values      []*t.Token
+		table       t.Token
 	)
 
 	currentToken := 0
 
 	//Process INSERT INTO sequense
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("insert")) {
+	if !tokens[currentToken].Equals(t.TokenFromKeyword("insert")) {
 		return nil, fmt.Errorf("expected INSERT keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("into")) {
+	if !tokens[currentToken].Equals(t.TokenFromKeyword("into")) {
 		return nil, fmt.Errorf("expected INTO keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
 
 	//Process table name
-	if tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
 		return nil, fmt.Errorf("expected table name at %d", tokens[currentToken].Position)
-	} else {
-		table = *tokens[currentToken]
 	}
+	table = *tokens[currentToken]
 
 	currentToken++
 
 	//Situation if column names specified
-	if tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
 		currentToken++
-		for !tokens[currentToken].Equals(tokenizer.TokenFromSymbol(")")) {
-			if tokens[currentToken].Equals(tokenizer.TokenFromSymbol(",")) {
+		for !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
+			if tokens[currentToken].Equals(t.TokenFromSymbol(",")) {
+				currentToken++
 				continue
 			}
 			if currentToken == len(tokens) {
 				return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[currentToken].Position)
 			}
 			tempToken := tokens[currentToken]
-			if tempToken.Kind != tokenizer.IdentifierKind {
+			if tempToken.Kind != t.IdentifierKind {
 				return nil, fmt.Errorf("column names are only can be identifiers, got: %s", tempToken.String())
 			}
 			columnNames = append(columnNames, tempToken)
@@ -90,16 +114,16 @@ func parseInsertIntoStatement(tokens []*tokenizer.Token) (*InsertStatement, erro
 	}
 
 	// Process VALUES keyword
-	if !tokens[currentToken].Equals(tokenizer.TokenFromKeyword("values")) {
+	if !tokens[currentToken].Equals(t.TokenFromKeyword("values")) {
 		return nil, fmt.Errorf("expected VALUES keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
 
 	// Repeat but for values
-	if tokens[currentToken].Equals(tokenizer.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
 		currentToken++
-		for !tokens[currentToken].Equals(tokenizer.TokenFromSymbol(")")) {
-			if tokens[currentToken].Equals(tokenizer.TokenFromSymbol(",")) {
+		for !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
+			if tokens[currentToken].Equals(t.TokenFromSymbol(",")) {
 				currentToken++
 				continue
 			}
@@ -107,7 +131,7 @@ func parseInsertIntoStatement(tokens []*tokenizer.Token) (*InsertStatement, erro
 				return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[currentToken].Position)
 			}
 			tempToken := tokens[currentToken]
-			// if tempToken.Kind != tokenizer.IdentifierKind || tempToken.Kind != tokenizer.NumericKind {
+			// if tempToken.Kind != t.IdentifierKind || tempToken.Kind != t.NumericKind {
 			// 	return nil, fmt.Errorf("values can be only identifiers or numbers, got: %s", tempToken.String())
 			// }
 			values = append(values, tempToken)
@@ -117,7 +141,7 @@ func parseInsertIntoStatement(tokens []*tokenizer.Token) (*InsertStatement, erro
 	} else {
 		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[currentToken].Position)
 	}
-	return &InsertStatement{
+	return &InsertIntoQuery{
 		Table:       table,
 		ColumnNames: columnNames,
 		Values:      values,

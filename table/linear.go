@@ -48,7 +48,7 @@ func (lt LinearTable) Select(req *parser.SelectStatement) (*[][]Element, error) 
 	return nil, nil
 }
 
-func (lt LinearTable) Insert(req *parser.InsertStatement) error {
+func (lt LinearTable) Insert(req *parser.InsertIntoQuery) error {
 	return nil
 }
 

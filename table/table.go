@@ -13,6 +13,6 @@ type Table interface {
 	IsInitialized() bool
 	Create(req *parser.CreateTableQuery) (Table, string, error)
 	Select(req *parser.SelectStatement) (*[][]Element, error)
-	Insert(req *parser.InsertStatement) error
+	Insert(req *parser.InsertIntoQuery) error
 	ShowCreate() string
 }

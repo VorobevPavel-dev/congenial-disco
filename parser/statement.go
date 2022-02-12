@@ -45,7 +45,7 @@ const (
 type Statement struct {
 	SelectStatement      *SelectStatement
 	CreateTableStatement *CreateTableQuery
-	InsertStatement      *InsertStatement
+	InsertStatement      *InsertIntoQuery
 	ShowCreateStatement  *ShowCreateQuery
 	// Experimental
 	Type int

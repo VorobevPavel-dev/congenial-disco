@@ -3,6 +3,7 @@ package tokenizer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -310,4 +311,16 @@ func GenerateRandomToken(kind TokenKind) *Token {
 		}
 	}
 	return nil
+}
+
+// Bracketize will return set of token values inside brackets delimited by comma with space.
+func Bracketize(input []*Token) string {
+	if len(input) == 0 {
+		return ""
+	}
+	result := fmt.Sprintf("(%s", input[0].Value)
+	for _, el := range input[1:] {
+		result += fmt.Sprintf(", %s", el.Value)
+	}
+	return result + ")"
 }

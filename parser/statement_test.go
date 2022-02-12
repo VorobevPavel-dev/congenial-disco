@@ -9,6 +9,11 @@ import (
 	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
+//getRandomFromKinds returns you random element of given kinds
+func getRandomFromKinds(kinds ...token.TokenKind) token.TokenKind {
+	return kinds[rand.Intn(len(kinds))]
+}
+
 func TestSelectStatementParsing(t *testing.T) {
 	t.Run("Test valid select parsing", func(t *testing.T) {
 		inputs := []string{
@@ -70,34 +75,135 @@ func TestSelectStatementParsing(t *testing.T) {
 }
 
 func TestInsertStatementParsing(t *testing.T) {
-	t.Run("Test valid select parsing", func(t *testing.T) {
-		inputs := []string{
-			"INsert into test values (1,2,3);",
-		}
-		expectedOutputs := []*InsertStatement{
-			{
-				Table: token.Token{
-					Value: "test",
-					Kind:  token.IdentifierKind,
-				},
-				Values: []*token.Token{
-					{Value: "1", Kind: token.NumericKind},
-					{Value: "2", Kind: token.NumericKind},
-					{Value: "3", Kind: token.NumericKind},
-				},
-				ColumnNames: nil,
-			},
-		}
-		for testCase := range inputs {
-			tokenList := *token.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseInsertIntoStatement(tokenList)
-			if err != nil {
-				t.Errorf("Parsing failed on set #%d: %v",
-					testCase, err)
+	t.Run("Test valid insert parsing", func(t *testing.T) {
+		numberOfTests := 100
+		for i := 0; i < numberOfTests; i++ {
+			// Generate INSERT INTO query
+			tableName := token.GenerateRandomToken(token.IdentifierKind)
+			// Generate column names and values
+			columnsCount := rand.Intn(100) + 1
+			columns := make([]*token.Token, columnsCount)
+			values := make([]*token.Token, columnsCount)
+			for i := range columns {
+				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
+				values[i] = token.GenerateRandomToken(getRandomFromKinds(
+					token.NumericKind,
+					token.IdentifierKind,
+				))
 			}
-			if !actualResult.Equals(expectedOutputs[testCase]) {
-				t.Errorf("Assertion failed. Expected: %s, got: %s",
-					actualResult.String(), expectedOutputs[testCase].String())
+			inputQuery := &InsertIntoQuery{
+				Table:       *tableName,
+				ColumnNames: columns,
+				Values:      values,
+			}
+			inputSQL := (*inputQuery).CreateOriginal()
+			// t.Logf("Generated SQL: %s", inputSQL)
+			// Start reverse parsing
+			tokens := token.ParseTokenSequence(inputSQL)
+			if tokens == nil || len(*tokens) == 0 {
+				t.Errorf("no tokens extracted from query %s", inputSQL)
+			}
+			result, err := parseInsertIntoStatement(*tokens)
+			if err != nil {
+				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+					inputSQL,
+					tokens,
+					err,
+				)
+			}
+			if !inputQuery.Equals(result) {
+				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+					inputSQL,
+					inputQuery,
+					result,
+				)
+			}
+		}
+	})
+	t.Run("Test invalid insert parsing", func(t *testing.T) {
+		nextPermutation := func(input []*token.Token) []*token.Token {
+			return append(input[1:], input[0])
+		}
+		inputs := []string{}
+
+		template := "INSERT INTO %s %s VALUES %s;"
+
+		for _, tt := range []token.TokenKind{
+			token.NumericKind,
+			token.KeywordKind,
+			token.SymbolKind,
+			token.TypeKind,
+		} {
+			// Incorrect type of <table_name>
+			incTableName := token.GenerateRandomToken(tt)
+			inputs = append(inputs, fmt.Sprintf(template, incTableName.Value, "(test)", "1"))
+
+			// Incorrect type of <column_name> in different postions
+			incColumnName := token.GenerateRandomToken(tt)
+			numberOfColumns := rand.Intn(10) + 1
+			columns := make([]*token.Token, numberOfColumns)
+			values := make([]*token.Token, numberOfColumns)
+			//	Fill slices
+			for i := range columns {
+				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
+				values[i] = token.GenerateRandomToken(getRandomFromKinds(token.NumericKind, token.IdentifierKind))
+			}
+			columns[0] = incColumnName
+			for i := 0; i < len(columns); i++ {
+				inputs = append(inputs, (&InsertIntoQuery{
+					Table:       *token.GenerateRandomToken(token.IdentifierKind),
+					ColumnNames: columns,
+					Values:      values,
+				}).CreateOriginal())
+				columns = nextPermutation(columns)
+			}
+		}
+		// Incorrect value type of <value> in different positions
+		for _, tt := range []token.TokenKind{
+			token.KeywordKind,
+			token.SymbolKind,
+			token.TypeKind,
+		} {
+			numberOfColumns := rand.Intn(10) + 1
+			columns := make([]*token.Token, numberOfColumns)
+			values := make([]*token.Token, numberOfColumns)
+			//	Fill slices
+			for i := range columns {
+				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
+				values[i] = token.GenerateRandomToken(getRandomFromKinds(token.NumericKind, token.IdentifierKind))
+			}
+			values[0] = token.GenerateRandomToken(tt)
+			for i := 0; i < len(columns); i++ {
+				inputs = append(inputs, (&InsertIntoQuery{
+					Table:       *token.GenerateRandomToken(token.IdentifierKind),
+					ColumnNames: columns,
+					Values:      values,
+				}).CreateOriginal())
+				columns = nextPermutation(columns)
+			}
+		}
+
+		// TODO:
+		// 		Incorrect ";" position
+
+		// Other cases
+		inputs = append(inputs,
+			"table_name",
+			"ins into table_name values (1);",
+			"insert in table_name values (1);",
+			"insert into table_name val (1);",
+			"insert table_name values (1);",
+			"into table_name values (1);",
+			"table_name values (1);",
+		)
+
+		t.Logf("Generated incorrect inputs: %d", len(inputs))
+		for _, c := range inputs {
+			tokenList := *token.ParseTokenSequence(c)
+			actualResult, err := parseSelectStatement(tokenList)
+			if err == nil {
+				t.Errorf("Expected error on query %s. Values got: %v",
+					c, actualResult)
 			}
 		}
 	})
