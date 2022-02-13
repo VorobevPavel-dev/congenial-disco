@@ -1,9 +1,13 @@
 package main
 
 import (
+	"math/rand"
 	"testing"
+	"time"
 
+	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
+	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 func TestCommandSequenceExecution(t *testing.T) {
@@ -51,4 +55,78 @@ func TestCommandSequenceExecution(t *testing.T) {
 		t.Logf("Result of select: \n%s", result)
 	})
 	t.Logf("State after all tests: %s", session.ToString())
+}
+
+func BenchmarkMassiveTableCreation(b *testing.B) {
+	session := InitSession()
+	inputs := make([]string, b.N)
+	for i := 0; i < b.N; i++ {
+		// Generating random CREATE TABLE query
+		tableName := token.GenerateRandomToken(token.IdentifierKind)
+		//Generate column definition
+		columns := make([]*parser.ColumnDefinition, 10)
+		for i := range columns {
+			columns[i] = &parser.ColumnDefinition{
+				Name:     token.GenerateRandomToken(token.IdentifierKind),
+				Datatype: token.GenerateRandomToken(token.TypeKind),
+			}
+		}
+		inputQuery := &parser.CreateTableQuery{
+			Name: tableName,
+			Cols: columns,
+		}
+		inputs[i] = (*inputQuery).CreateOriginal()
+	}
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		_, err := session.ExecuteCommand(inputs[i])
+		b.StopTimer()
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+// Will create table with 100 columns and b.N rows only with IdentifierKind tokens
+func BenchmarkSimpleInsertion(b *testing.B) {
+	rand.Seed(time.Now().Unix())
+	session := InitSession()
+	columnCount := 1
+	// Generate table
+	tableName := token.GenerateRandomToken(token.IdentifierKind)
+	tableColumns := make([]*parser.ColumnDefinition, columnCount)
+	for i := range tableColumns {
+		tableColumns[i] = &parser.ColumnDefinition{
+			Name: token.GenerateRandomToken(token.IdentifierKind),
+			Datatype: &token.Token{
+				Value: "text",
+				Kind:  token.TypeKind,
+			},
+		}
+	}
+	inputQuery := &parser.CreateTableQuery{
+		Name: tableName,
+		Cols: tableColumns,
+	}
+	session.ExecuteCommand((*inputQuery).CreateOriginal())
+	// Generate payload
+	for i := 0; i < b.N; i++ {
+		columns := make([]*token.Token, columnCount)
+		values := make([]*token.Token, columnCount)
+		for i := range columns {
+			columns[i] = tableColumns[i].Name
+			values[i] = token.GenerateRandomToken(token.IdentifierKind)
+		}
+		tempQuery := &parser.InsertIntoQuery{
+			Table:       *tableName,
+			ColumnNames: columns,
+			Values:      values,
+		}
+		b.StartTimer()
+		_, err := session.ExecuteCommand((*tempQuery).CreateOriginal())
+		b.StopTimer()
+		if err != nil {
+			b.Error(err)
+		}
+	}
 }
