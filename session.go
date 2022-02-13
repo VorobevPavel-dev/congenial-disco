@@ -45,6 +45,9 @@ func (s *Session) ToString() string {
 //		error
 func (s *Session) ExecuteCommand(request string) (string, error) {
 	statement := parser.Parse(strings.ToLower(request))
+	if statement == nil {
+		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
+	}
 	switch statement.Type {
 	case parser.ShowCreateType:
 		if val, ok := s.tables[statement.ShowCreateStatement.TableName.Value]; ok {
@@ -68,10 +71,8 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 			return fmt.Sprint(err), err
 		}
 		return result, nil
-	default:
-		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
 	}
-	return "", nil
+	return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
 }
 
 func (s *Session) executeCreate(statement *parser.Statement) error {
