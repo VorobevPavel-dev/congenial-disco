@@ -152,7 +152,7 @@ func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (Table, error) {
 			return nil, fmt.Errorf("value %s for column with name %s has unsupported type (expected type to insert: %s)",
 				mapToInsert[column].Value,
 				column,
-				tokenizer.KindToString(int(supportedType)),
+				tokenizer.KindToString(supportedType),
 			)
 		}
 	}

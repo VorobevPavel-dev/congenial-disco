@@ -11,108 +11,27 @@ import (
 	"github.com/VorobevPavel-dev/congenial-disco/utility"
 )
 
-// List of reserved words
-const (
-	SelectKeyword string = "select"
-	FromKeyword   string = "from"
-	AsKeyword     string = "as"
-	TableKeyword  string = "table"
-	CreateKeyword string = "create"
-	InsertKeyword string = "insert"
-	IntoKeyword   string = "into"
-	ValuesKeyword string = "values"
-	ShowKeyword   string = "show"
-)
-
-// List of constant symbols
-const (
-	SemicolonSymbol  string = ";"
-	AsteriskSymbol   string = "*"
-	CommaSymbol      string = ","
-	LeftParenSymbol  string = "("
-	RightParenSymbol string = ")"
-	SpaceSymbol      string = " "
-)
-
-// List of reserver words describing type of something
-const (
-	IntType  string = "int"
-	TextType string = "text"
-	charset  string = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-)
-
-const (
-	// NumericKind will correspond to all numeric values
-	NumericKind TokenKind = iota
-	// KeywordKind will correspond to all string equal to one of keywords
-	KeywordKind
-	// SymbolKind will correspond to every specified utility symbol
-	SymbolKind
-	// IdentifierKind will correspond to every custom value (table name, column name, values etc...)
-	IdentifierKind
-	// TypeKind will correspond to every type in request
-	TypeKind
-)
-
-// KindToString returns string representation of token kind
-func KindToString(kind int) string {
-	switch kind {
-	case 0:
-		return "number"
-	case 1:
-		return "Keyword"
-	case 2:
-		return "symbol"
-	case 3:
-		return "identifier"
-	case 4:
-		return "type"
-	default:
-		return "unknown"
-	}
-}
-
-type TokenKind uint
-
-func Keywords() *[]string {
-	return &[]string{
-		SelectKeyword,
-		FromKeyword,
-		AsKeyword,
-		TableKeyword,
-		CreateKeyword,
-		InsertKeyword,
-		IntoKeyword,
-		ValuesKeyword,
-		ShowKeyword,
-	}
-}
-
-func Symbols() *[]string {
-	return &[]string{
-		CommaSymbol,
-		SemicolonSymbol,
-		SpaceSymbol,
-		AsteriskSymbol,
-		LeftParenSymbol,
-		RightParenSymbol,
-	}
-}
-
-func Types() *[]string {
-	return &[]string{
-		IntType,
-		TextType,
-	}
-}
-
 var (
-	symbols                       = *Symbols()
-	keywords                      = *Keywords()
-	types                         = *Types()
+	KindNames               *map[TokenKind]string
+	Reserved                map[TokenKind]map[string]*Token
+	symbols                 *[]string
+	keywords                *[]string
+	types                   *[]string
 	ErrUnsupportedTokenType error = errors.New("unsupported token type")
 )
+
+func init() {
+	KindNames = KindMap()
+	Reserved = Constants()
+	symbols = Keys(Reserved[SymbolKind])
+	keywords = Keys(Reserved[KeywordKind])
+	types = Keys(Reserved[TypeKind])
+}
+
+// KindToString returns string representation of token kind
+func KindToString(kind TokenKind) string {
+	return (*KindNames)[kind]
+}
 
 type Token struct {
 	Value    string    `json:"value"`
@@ -170,11 +89,8 @@ func ParseNumericToken(value string) *Token {
 // If it so returns &Token with KeywordKind
 func ParseKeywordToken(value string) *Token {
 	loweredValue := strings.ToLower(value)
-	if utility.StringIsIn(loweredValue, keywords) {
-		return &Token{
-			Value: loweredValue,
-			Kind:  KeywordKind,
-		}
+	if value, ok := Reserved[KeywordKind][loweredValue]; ok {
+		return value
 	}
 	return nil
 }
@@ -182,11 +98,8 @@ func ParseKeywordToken(value string) *Token {
 // ParseSymbolToken checks if given value is a reserved symbol.
 // If it so returns &Token with SymbolKind
 func ParseSymbolToken(value string) *Token {
-	if utility.StringIsIn(value, symbols) {
-		return &Token{
-			Value: value,
-			Kind:  SymbolKind,
-		}
+	if value, ok := Reserved[SymbolKind][value]; ok {
+		return value
 	}
 	return nil
 }
@@ -195,7 +108,7 @@ func ParseSymbolToken(value string) *Token {
 // reserved keyword describing types. If it so returns &Token with TypeKind
 func ParseTypeToken(value string) *Token {
 	loweredValue := strings.ToLower(value)
-	if utility.StringIsIn(value, types) {
+	if utility.StringIsIn(value, *types) {
 		return &Token{
 			Value: loweredValue,
 			Kind:  TypeKind,
@@ -214,7 +127,7 @@ func ParseIdentifierToken(value string) *Token {
 }
 
 func TokenFromKeyword(value string) *Token {
-	if !utility.StringIsIn(value, keywords) {
+	if !utility.StringIsIn(value, *keywords) {
 		return nil
 	}
 	return &Token{
@@ -224,7 +137,7 @@ func TokenFromKeyword(value string) *Token {
 }
 
 func TokenFromSymbol(value string) *Token {
-	if !utility.StringIsIn(value, symbols) {
+	if !utility.StringIsIn(value, *symbols) {
 		return nil
 	}
 	return &Token{
@@ -242,7 +155,7 @@ func ParseTokenSequence(expression string) *[]*Token {
 		startPosition = 0
 		resultTokens  []*Token
 	)
-	parts := utility.DivideBySeparators(expression, symbols)
+	parts := utility.DivideBySeparators(expression, *symbols)
 	for _, part := range parts {
 		token, err := TokenFromString(part, startPosition)
 		if err != nil {
@@ -278,17 +191,17 @@ func GenerateRandomToken(kind TokenKind) *Token {
 			Kind:  NumericKind,
 		}
 	case 1:
-		index := rand.Intn(len(*Keywords()))
+		index := rand.Intn(len(*keywords))
 		return &Token{
-			Value: (*Keywords())[index],
+			Value: (*keywords)[index],
 			Kind:  KeywordKind,
 		}
 	case 2:
 		// Excludes spaces
 		value := " "
 		for value == " " {
-			index := rand.Intn(len(*Symbols()))
-			value = (*Symbols())[index]
+			index := rand.Intn(len(*symbols))
+			value = (*symbols)[index]
 		}
 		return &Token{
 			Value: value,
@@ -304,9 +217,9 @@ func GenerateRandomToken(kind TokenKind) *Token {
 			Kind:  IdentifierKind,
 		}
 	case 4:
-		index := rand.Intn(len(*Types()))
+		index := rand.Intn(len(*types))
 		return &Token{
-			Value: (*Types())[index],
+			Value: (*types)[index],
 			Kind:  TypeKind,
 		}
 	}

@@ -20,7 +20,7 @@ var (
 	ErrExpectedToken = func(e *t.Token, p int) error {
 		return fmt.Errorf("expected %s %s at %d",
 			e.Value,
-			t.KindToString(int(e.Kind)),
+			t.KindToString(e.Kind),
 			p,
 		)
 	}
@@ -28,8 +28,8 @@ var (
 	// ErrInvalidTokenKind builds error according to current token and desired TokenKind
 	ErrInvalidTokenKind = func(e *t.Token, ek t.TokenKind) error {
 		return fmt.Errorf("expected %s but got %s at %d",
-			t.KindToString(int(e.Kind)),
-			t.KindToString(int(ek)),
+			t.KindToString(e.Kind),
+			t.KindToString(ek),
 			e.Position,
 		)
 	}
