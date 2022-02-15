@@ -48,38 +48,31 @@ func parseShowCreateQuery(tokens []*t.Token) (*ShowCreateQuery, error) {
 
 	var tableName *t.Token
 
-	// Process SHOW CREATE sequence
-	currentToken := 0
+	// Process SHOW CREATE ( sequence
+	cursor := 0
 
-	if !tokens[currentToken].Equals(t.TokenFromKeyword("show")) {
-		return nil, fmt.Errorf("expected SHOW keyword at %d", tokens[currentToken].Position)
+	if err := AssertTokenSequence(tokens[:3], []*t.Token{
+		t.Reserved[t.KeywordKind]["show"],
+		t.Reserved[t.KeywordKind]["create"],
+		t.Reserved[t.SymbolKind]["("],
+	}); err != nil {
+		return nil, fmt.Errorf("cannot process \"SHOW CREATE (\" sequence, err: %v", err)
 	}
-	currentToken++
-	if !tokens[currentToken].Equals(t.TokenFromKeyword("create")) {
-		return nil, fmt.Errorf("expected CREATE keyword at %d", tokens[currentToken].Position)
-	}
-	currentToken++
+	cursor += 3
 
-	// Process set of table name
-	if !tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
-		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[currentToken].Position)
+	if tokens[cursor].Kind != t.IdentifierKind {
+		return nil, fmt.Errorf("table names are only can be identifiers, got: %s", tokens[cursor].String())
 	}
-	currentToken++
-	if tokens[currentToken].Kind != t.IdentifierKind {
-		return nil, fmt.Errorf("table names are only can be identifiers, got: %s", tokens[currentToken].String())
-	}
-	tableName = tokens[currentToken]
-	currentToken++
+	tableName = tokens[cursor]
+	cursor++
 
 	//process ); sequence
-	if !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
-		return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[currentToken].Position)
+	if err := AssertTokenSequence(tokens[cursor:], []*t.Token{
+		t.Reserved[t.SymbolKind][")"],
+		t.Reserved[t.SymbolKind][";"],
+	}); err != nil {
+		return nil, fmt.Errorf("cannot process \");\" sequence, err: %v", err)
 	}
-	currentToken++
-	if !tokens[currentToken].Equals(t.TokenFromSymbol(";")) {
-		return nil, fmt.Errorf("expected \";\" symbol at %d", tokens[currentToken].Position)
-	}
-	currentToken++
 	return &ShowCreateQuery{
 		TableName: tableName,
 	}, nil

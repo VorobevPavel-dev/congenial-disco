@@ -77,7 +77,7 @@ func (ct CreateTableQuery) CreateOriginal() string {
 // Input set must have SymbolToken with value ';' at the end in order to be parsed.
 func parseCreateTableQuery(tokens []*t.Token) (*CreateTableQuery, error) {
 	// Validate that set of tokens has ';' SymbolKind token at the end
-	if !tokens[len(tokens)-1].Equals(t.TokenFromSymbol(";")) {
+	if !tokens[len(tokens)-1].Equals(t.Reserved[t.SymbolKind][";"]) {
 		return nil, ErrNoSemicolonAtTheEnd
 	}
 
@@ -87,16 +87,13 @@ func parseCreateTableQuery(tokens []*t.Token) (*CreateTableQuery, error) {
 		cursor    int = 0
 	)
 
-	// Process "CREATE TABLE " sequence
-	if !tokens[cursor].Equals(t.TokenFromKeyword("create")) {
-		return nil, ErrExpectedToken(t.TokenFromKeyword("create"), tokens[cursor].Position)
+	if err := AssertTokenSequence(tokens[:2], []*t.Token{
+		t.Reserved[t.KeywordKind]["create"],
+		t.Reserved[t.KeywordKind]["table"],
+	}); err != nil {
+		return nil, fmt.Errorf("cannot process CREATE TABLE sequence, err: %v", err)
 	}
-	cursor++
-
-	if !tokens[cursor].Equals(t.TokenFromKeyword("table")) {
-		return nil, ErrExpectedToken(t.TokenFromKeyword("table"), tokens[cursor].Position)
-	}
-	cursor++
+	cursor += 2
 
 	// Process table name
 	if tokens[cursor].Kind != t.IdentifierKind {
@@ -105,19 +102,19 @@ func parseCreateTableQuery(tokens []*t.Token) (*CreateTableQuery, error) {
 	tableName = tokens[cursor]
 	cursor++
 
-	if !tokens[cursor].Equals(t.TokenFromSymbol("(")) {
-		return nil, ErrExpectedToken(t.TokenFromSymbol("("), tokens[cursor].Position)
+	if !tokens[cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+		return nil, ErrExpectedToken(t.Reserved[t.SymbolKind]["("], tokens[cursor].Position)
 	}
 	colDefStartPos := cursor
 	cursor++
-	colDefEndPos := t.FindToken(tokens, t.TokenFromSymbol(")"))
+	colDefEndPos := t.FindToken(tokens, t.Reserved[t.SymbolKind][")"])
 
 	if colDefEndPos == colDefStartPos {
 		return nil, errors.New("no columns specified")
 	}
 
 	for cursor = colDefStartPos + 1; cursor < colDefEndPos; cursor += 2 {
-		if tokens[cursor].Equals(t.TokenFromSymbol(",")) {
+		if tokens[cursor].Equals(t.Reserved[t.SymbolKind][","]) {
 			cursor++
 		}
 
@@ -132,10 +129,10 @@ func parseCreateTableQuery(tokens []*t.Token) (*CreateTableQuery, error) {
 		tempColDef.Datatype = tokens[cursor+1]
 
 		columns = append(columns, tempColDef)
-		if tokens[cursor+2].Equals(t.TokenFromSymbol(")")) {
+		if tokens[cursor+2].Equals(t.Reserved[t.SymbolKind][")"]) {
 			break
-		} else if !tokens[cursor+2].Equals(t.TokenFromSymbol(",")) {
-			return nil, ErrExpectedToken(t.TokenFromSymbol(","), tokens[cursor+2].Position)
+		} else if !tokens[cursor+2].Equals(t.Reserved[t.SymbolKind][","]) {
+			return nil, ErrExpectedToken(t.Reserved[t.SymbolKind][","], tokens[cursor+2].Position)
 		}
 	}
 	return &CreateTableQuery{

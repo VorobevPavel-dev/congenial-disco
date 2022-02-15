@@ -75,17 +75,16 @@ func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	currentToken := 0
 
 	//Process INSERT INTO sequense
-	if !tokens[currentToken].Equals(t.TokenFromKeyword("insert")) {
-		return nil, fmt.Errorf("expected INSERT keyword at %d", tokens[currentToken].Position)
+	if err := AssertTokenSequence(tokens[:2], []*t.Token{
+		{Value: "insert", Kind: t.KeywordKind},
+		{Value: "into", Kind: t.KeywordKind},
+	}); err != nil {
+		return nil, fmt.Errorf("cannot process INSERT INTO sequence, err: %v", err)
 	}
-	currentToken++
-	if !tokens[currentToken].Equals(t.TokenFromKeyword("into")) {
-		return nil, fmt.Errorf("expected INTO keyword at %d", tokens[currentToken].Position)
-	}
-	currentToken++
+	currentToken += 2
 
 	//Process table name
-	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.Reserved[t.SymbolKind]["("]) {
 		return nil, fmt.Errorf("expected table name at %d", tokens[currentToken].Position)
 	}
 	table = *tokens[currentToken]
@@ -93,10 +92,10 @@ func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	currentToken++
 
 	//Situation if column names specified
-	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.Reserved[t.SymbolKind]["("]) {
 		currentToken++
-		for !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
-			if tokens[currentToken].Equals(t.TokenFromSymbol(",")) {
+		for !tokens[currentToken].Equals(t.Reserved[t.SymbolKind][")"]) {
+			if tokens[currentToken].Equals(t.Reserved[t.SymbolKind][","]) {
 				currentToken++
 				continue
 			}
@@ -114,16 +113,16 @@ func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	}
 
 	// Process VALUES keyword
-	if !tokens[currentToken].Equals(t.TokenFromKeyword("values")) {
+	if !tokens[currentToken].Equals(t.Reserved[t.KeywordKind]["values"]) {
 		return nil, fmt.Errorf("expected VALUES keyword at %d", tokens[currentToken].Position)
 	}
 	currentToken++
 
 	// Repeat but for values
-	if tokens[currentToken].Equals(t.TokenFromSymbol("(")) {
+	if tokens[currentToken].Equals(t.Reserved[t.SymbolKind]["("]) {
 		currentToken++
-		for !tokens[currentToken].Equals(t.TokenFromSymbol(")")) {
-			if tokens[currentToken].Equals(t.TokenFromSymbol(",")) {
+		for !tokens[currentToken].Equals(t.Reserved[t.SymbolKind][")"]) {
+			if tokens[currentToken].Equals(t.Reserved[t.SymbolKind][","]) {
 				currentToken++
 				continue
 			}

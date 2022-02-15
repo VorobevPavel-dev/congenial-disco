@@ -51,7 +51,7 @@ func (slct SelectQuery) CreateOriginal() string {
 
 func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
 	// Validate that set of tokens has ';' SymbolKind token at the end
-	if !tokens[len(tokens)-1].Equals(t.TokenFromSymbol(";")) {
+	if !tokens[len(tokens)-1].Equals(t.Reserved[t.SymbolKind][";"]) {
 		return nil, ErrNoSemicolonAtTheEnd
 	}
 
@@ -62,24 +62,24 @@ func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
 	)
 
 	// Process SELECT keyword
-	if !tokens[cursor].Equals(t.TokenFromKeyword("select")) {
+	if !tokens[cursor].Equals(t.Reserved[t.KeywordKind]["select"]) {
 		return nil, fmt.Errorf("expected SELECT keyword at %d", tokens[0].Position)
 	}
 	cursor++
 
 	// Process set of columns if any were specified
-	if !tokens[cursor].Equals(t.TokenFromSymbol("(")) {
-		return nil, ErrExpectedToken(t.TokenFromSymbol("("), tokens[cursor].Position)
+	if !tokens[cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+		return nil, ErrExpectedToken(t.Reserved[t.SymbolKind]["("], tokens[cursor].Position)
 	}
 	colDefStartPos := cursor
 	cursor++
-	colDefEndPos := t.FindToken(tokens, t.TokenFromSymbol(")"))
+	colDefEndPos := t.FindToken(tokens, t.Reserved[t.SymbolKind][")"])
 	if colDefEndPos == colDefStartPos {
 		return nil, errors.New("no columns specified")
 	}
 
 	for cursor = colDefStartPos + 1; cursor < colDefEndPos; cursor++ {
-		if tokens[cursor].Equals(t.TokenFromSymbol(",")) {
+		if tokens[cursor].Equals(t.Reserved[t.SymbolKind][","]) {
 			cursor++
 		}
 		if tokens[cursor].Kind != t.IdentifierKind {
@@ -90,7 +90,7 @@ func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
 	cursor++
 
 	// Process FROM keyword
-	if !tokens[cursor].Equals(t.TokenFromKeyword("from")) {
+	if !tokens[cursor].Equals(t.Reserved[t.KeywordKind]["from"]) {
 		return nil, fmt.Errorf("expected FROM keyword at %d", tokens[0].Position)
 	}
 	cursor++
@@ -103,8 +103,8 @@ func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
 	cursor++
 
 	// Process ";" symbol at the end
-	if !tokens[cursor].Equals(t.TokenFromSymbol(";")) {
-		return nil, ErrExpectedToken(t.TokenFromSymbol(";"), tokens[cursor].Position)
+	if !tokens[cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+		return nil, ErrExpectedToken(t.Reserved[t.SymbolKind][";"], tokens[cursor].Position)
 	}
 
 	return &SelectQuery{
