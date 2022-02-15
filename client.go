@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -17,8 +16,8 @@ var (
 )
 
 func init() {
-	flag.IntVar(&port, "port", port, "Port used for listenning connections")
-	flag.Parse()
+	// flag.IntVar(&port, "port", port, "Port used for listenning connections")
+	// flag.Parse()
 
 	// Validate flags
 	if port < 1024 {

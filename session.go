@@ -65,6 +65,7 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 		if err != nil {
 			return fmt.Sprint(err), err
 		}
+		return "ok", nil
 	case parser.SelectType:
 		result, err := s.executeSelect(statement)
 		if err != nil {
