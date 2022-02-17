@@ -118,7 +118,7 @@ func BenchmarkSimpleInsertion(b *testing.B) {
 			values[i] = token.GenerateRandomToken(token.IdentifierKind)
 		}
 		tempQuery := &parser.InsertIntoQuery{
-			Table:       *tableName,
+			Table:       tableName,
 			ColumnNames: columns,
 			Values:      values,
 		}

@@ -89,7 +89,7 @@ func TestInsertStatementParsing(t *testing.T) {
 				))
 			}
 			inputQuery := &InsertIntoQuery{
-				Table:       *tableName,
+				Table:       tableName,
 				ColumnNames: columns,
 				Values:      values,
 			}
@@ -148,7 +148,7 @@ func TestInsertStatementParsing(t *testing.T) {
 			columns[0] = incColumnName
 			for i := 0; i < len(columns); i++ {
 				inputs = append(inputs, (&InsertIntoQuery{
-					Table:       *token.GenerateRandomToken(token.IdentifierKind),
+					Table:       token.GenerateRandomToken(token.IdentifierKind),
 					ColumnNames: columns,
 					Values:      values,
 				}).CreateOriginal())
@@ -172,7 +172,7 @@ func TestInsertStatementParsing(t *testing.T) {
 			values[0] = token.GenerateRandomToken(tt)
 			for i := 0; i < len(columns); i++ {
 				inputs = append(inputs, (&InsertIntoQuery{
-					Table:       *token.GenerateRandomToken(token.IdentifierKind),
+					Table:       token.GenerateRandomToken(token.IdentifierKind),
 					ColumnNames: columns,
 					Values:      values,
 				}).CreateOriginal())

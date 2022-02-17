@@ -16,7 +16,7 @@ import (
 // Number of columns must be exact same as number of provided values.
 // If no <column_name> specified then number of <valueX> must be exact as number of columns in target table.
 type InsertIntoQuery struct {
-	Table       t.Token
+	Table       *t.Token
 	ColumnNames []*t.Token
 	Values      []*t.Token
 }
@@ -51,7 +51,7 @@ func (ins InsertIntoQuery) Equals(other *InsertIntoQuery) bool {
 			return false
 		}
 	}
-	return ins.Table.Equals(&other.Table)
+	return ins.Table.Equals(other.Table)
 }
 
 // CreateOriginal method needs to be implemented in order to implement Query interface.
@@ -69,7 +69,7 @@ func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	var (
 		columnNames []*t.Token
 		values      []*t.Token
-		table       t.Token
+		table       *t.Token
 	)
 
 	currentToken := 0
@@ -87,7 +87,7 @@ func parseInsertIntoStatement(tokens []*t.Token) (*InsertIntoQuery, error) {
 	if tokens[currentToken].Equals(t.Reserved[t.SymbolKind]["("]) {
 		return nil, fmt.Errorf("expected table name at %d", tokens[currentToken].Position)
 	}
-	table = *tokens[currentToken]
+	table = tokens[currentToken]
 
 	currentToken++
 
