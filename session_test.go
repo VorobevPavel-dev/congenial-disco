@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
-	"github.com/VorobevPavel-dev/congenial-disco/table"
+	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
 	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
@@ -25,7 +25,7 @@ func TestCommandSequenceExecution(t *testing.T) {
 		if _, ok := session.tables["test"]; !ok {
 			t.Error("No required table \"test\" was found in tables map")
 		}
-		columnNames := session.tables["test"].(table.LinearTable).GetColumnsNames()
+		columnNames := session.tables["test"].(linear.LinearTable).GetColumnsNames()
 		if len(columnNames) != expectedNumOfColumns {
 			t.Errorf("Count of columns differ. Expected: %d, got: %v", expectedNumOfColumns, columnNames)
 		}
@@ -64,16 +64,16 @@ func BenchmarkMassiveTableCreation(b *testing.B) {
 		// Generating random CREATE TABLE query
 		tableName := token.GenerateRandomToken(token.IdentifierKind)
 		//Generate column definition
-		columns := make([]*parser.ColumnDefinition, 10)
+		columns := make([]parser.ColumnDefinition, 10)
 		for i := range columns {
-			columns[i] = &parser.ColumnDefinition{
+			columns[i] = parser.ColumnDefinition{
 				Name:     token.GenerateRandomToken(token.IdentifierKind),
 				Datatype: token.GenerateRandomToken(token.TypeKind),
 			}
 		}
 		inputQuery := &parser.CreateTableQuery{
 			Name: tableName,
-			Cols: columns,
+			Cols: &columns,
 		}
 		inputs[i] = (*inputQuery).CreateOriginal()
 	}
@@ -94,9 +94,9 @@ func BenchmarkSimpleInsertion(b *testing.B) {
 	columnCount := 1
 	// Generate table
 	tableName := token.GenerateRandomToken(token.IdentifierKind)
-	tableColumns := make([]*parser.ColumnDefinition, columnCount)
+	tableColumns := make([]parser.ColumnDefinition, columnCount)
 	for i := range tableColumns {
-		tableColumns[i] = &parser.ColumnDefinition{
+		tableColumns[i] = parser.ColumnDefinition{
 			Name: token.GenerateRandomToken(token.IdentifierKind),
 			Datatype: &token.Token{
 				Value: "text",
@@ -106,7 +106,7 @@ func BenchmarkSimpleInsertion(b *testing.B) {
 	}
 	inputQuery := &parser.CreateTableQuery{
 		Name: tableName,
-		Cols: tableColumns,
+		Cols: &tableColumns,
 	}
 	session.ExecuteCommand((*inputQuery).CreateOriginal())
 	// Generate payload

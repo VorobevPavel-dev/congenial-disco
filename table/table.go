@@ -10,6 +10,7 @@ type Table interface {
 	Create(req *parser.CreateTableQuery) (Table, string, error)
 	Select(req *parser.SelectQuery) ([][]*tokenizer.Token, error)
 	Insert(req *parser.InsertIntoQuery) (Table, error)
+	Engine() string
 	ShowCreate() string
 	GetColumns() string
 	Count() int

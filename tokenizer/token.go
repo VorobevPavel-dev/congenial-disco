@@ -17,6 +17,7 @@ var (
 	symbols                 *[]string
 	keywords                *[]string
 	types                   *[]string
+	engines                 *[]string
 	ErrUnsupportedTokenType error = errors.New("unsupported token type")
 )
 
@@ -26,6 +27,7 @@ func init() {
 	symbols = Keys(Reserved[SymbolKind])
 	keywords = Keys(Reserved[KeywordKind])
 	types = Keys(Reserved[TypeKind])
+	engines = Keys(Reserved[EngineKind])
 }
 
 // KindToString returns string representation of token kind
@@ -58,6 +60,7 @@ func TokenFromString(value string, cursorPosition int) (*Token, error) {
 	tokenizers := []Tokenizer{
 		ParseNumericToken,
 		ParseTypeToken,
+		ParseEngineToken,
 		ParseKeywordToken,
 		ParseSymbolToken,
 		ParseIdentifierToken,
@@ -112,6 +115,17 @@ func ParseTypeToken(value string) *Token {
 		return &Token{
 			Value: loweredValue,
 			Kind:  TypeKind,
+		}
+	}
+	return nil
+}
+
+func ParseEngineToken(value string) *Token {
+	loweredValue := strings.ToLower(value)
+	if utility.StringIsIn(value, *engines) {
+		return &Token{
+			Value: loweredValue,
+			Kind:  EngineKind,
 		}
 	}
 	return nil
@@ -183,20 +197,20 @@ func FindToken(tokens []*Token, expected *Token) int {
 }
 
 func GenerateRandomToken(kind TokenKind) *Token {
-	switch int(kind) {
-	case 0:
+	switch kind {
+	case NumericKind:
 		min, max := -100000, 100000
 		return &Token{
 			Value: strconv.Itoa(rand.Intn(max-min+1) + min),
 			Kind:  NumericKind,
 		}
-	case 1:
+	case KeywordKind:
 		index := rand.Intn(len(*keywords))
 		return &Token{
 			Value: (*keywords)[index],
 			Kind:  KeywordKind,
 		}
-	case 2:
+	case SymbolKind:
 		// Excludes spaces
 		value := " "
 		for value == " " {
@@ -207,7 +221,7 @@ func GenerateRandomToken(kind TokenKind) *Token {
 			Value: value,
 			Kind:  SymbolKind,
 		}
-	case 3:
+	case IdentifierKind:
 		b := make([]byte, 20)
 		for i := range b {
 			b[i] = charset[rand.Intn(len(charset))]
@@ -216,13 +230,19 @@ func GenerateRandomToken(kind TokenKind) *Token {
 			Value: string(b),
 			Kind:  IdentifierKind,
 		}
-	case 4:
+	case TypeKind:
 		index := rand.Intn(len(*types))
 		return &Token{
 			Value: (*types)[index],
 			Kind:  TypeKind,
 		}
+	case EngineKind:
+		return &Token{
+			Value: (*engines)[rand.Intn(len(*engines))],
+			Kind:  EngineKind,
+		}
 	}
+
 	return nil
 }
 
