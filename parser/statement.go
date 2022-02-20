@@ -35,8 +35,10 @@ var (
 	}
 )
 
+type queryKind int
+
 const (
-	CreateTableType int = iota
+	CreateTableType queryKind = iota
 	SelectType
 	InsertType
 	ShowCreateType
@@ -48,7 +50,7 @@ type Statement struct {
 	InsertStatement      *InsertIntoQuery
 	ShowCreateStatement  *ShowCreateQuery
 	// Experimental
-	Type int
+	Type queryKind
 }
 
 // Experimental
@@ -68,37 +70,272 @@ func QueryToString(q *Query) string {
 
 // Parse will try to parse statement with all parsers successively
 // Returns a Statement struct with only one field not null
-func Parse(request string) *Statement {
+func Parse(request string) (*Statement, error) {
 	// Implement request string as a series of tokens
 	tokens := *t.ParseTokenSequence(request)
+	var (
+		cursor int = 0
+	)
 
-	createStatement, _ := parseCreateTableQuery(tokens)
-	if createStatement != nil {
+	switch tokens[cursor].Value {
+	case "create":
+		cursor++
+		query, err := parseCreateTableBranch(tokens, &cursor)
+		if err != nil {
+			return nil, err
+		}
 		return &Statement{
-			CreateTableStatement: createStatement,
+			CreateTableStatement: query,
 			Type:                 CreateTableType,
+		}, nil
+	case "insert":
+		cursor++
+		query, err := parseInsertIntoBranch(tokens, &cursor)
+		if err != nil {
+			return nil, err
 		}
-	}
-	insertStatement, _ := parseInsertIntoStatement(tokens)
-	if insertStatement != nil {
 		return &Statement{
-			InsertStatement: insertStatement,
+			InsertStatement: query,
 			Type:            InsertType,
+		}, nil
+	case "select":
+		cursor++
+		query, err := parseSelectBranch(tokens, &cursor)
+		if err != nil {
+			return nil, err
 		}
-	}
-	selectStatement, _ := parseSelectStatement(tokens)
-	if selectStatement != nil {
 		return &Statement{
-			SelectStatement: selectStatement,
+			SelectStatement: query,
 			Type:            SelectType,
+		}, nil
+	}
+	return nil, fmt.Errorf("current operation (%s) is not supported", tokens[cursor].Value)
+}
+
+func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, error) {
+	var (
+		parsingInProgress       bool               = true
+		step                    parsingStep        = stepTableKeyword
+		tableName               *t.Token           = nil
+		columnDefinitions       []ColumnDefinition = []ColumnDefinition{}
+		currentColumnDefinition ColumnDefinition   = ColumnDefinition{}
+		engine                  *t.Token           = nil
+	)
+	for *cursor < len(tokens) && parsingInProgress {
+		switch step {
+		case stepTableKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["table"]) {
+				return nil, fmt.Errorf("expected table keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepTableName
+			continue
+		case stepTableName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected table name at %d", tokens[*cursor].Position)
+			}
+			tableName = tokens[*cursor]
+			*cursor++
+			if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+				return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[*cursor].Position)
+			} else {
+				*cursor++
+				step = stepColumnName
+				continue
+			}
+		case stepColumnName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
+			}
+			currentColumnDefinition.Name = tokens[*cursor]
+			*cursor++
+			step = stepColumnType
+		case stepColumnType:
+			if tokens[*cursor].Kind != t.TypeKind {
+				return nil, fmt.Errorf("expected column type at %d", tokens[*cursor].Position)
+			}
+			currentColumnDefinition.Datatype = tokens[*cursor]
+			columnDefinitions = append(columnDefinitions, currentColumnDefinition)
+			currentColumnDefinition = ColumnDefinition{}
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
+				step = stepEngineKeyword
+				*cursor++
+			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
+				step = stepColumnName
+				*cursor++
+			} else {
+				return nil, fmt.Errorf("expected comma or closed bracket at %d", tokens[*cursor].Position)
+			}
+			continue
+		case stepEngineKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["engine"]) {
+				return nil, fmt.Errorf("expected ENGINE keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepEngineName
+			continue
+		case stepEngineName:
+			if tokens[*cursor].Kind != t.EngineKind {
+				return nil, fmt.Errorf("expected engine name at %d", tokens[*cursor].Position)
+			}
+			engine = tokens[*cursor]
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				parsingInProgress = false
+			} else {
+				return nil, fmt.Errorf("expected SETTINGS or \";\" symbol at %d", tokens[*cursor].Position)
+			}
 		}
 	}
-	showCreateStatement, _ := parseShowCreateQuery(tokens)
-	if showCreateStatement != nil {
-		return &Statement{
-			ShowCreateStatement: showCreateStatement,
-			Type:                ShowCreateType,
+	return &CreateTableQuery{
+		Name:   tableName,
+		Cols:   &columnDefinitions,
+		Engine: engine,
+	}, nil
+}
+
+func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, error) {
+	var (
+		parsingInProgress bool        = true
+		step              parsingStep = stepInsIntoKeyword
+		tableName         *t.Token    = nil
+		columnNames       []*t.Token  = []*t.Token{}
+		values            []*t.Token  = []*t.Token{}
+	)
+	for *cursor < len(tokens) && parsingInProgress {
+		switch step {
+		case stepInsIntoKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["into"]) {
+				return nil, fmt.Errorf("expected into keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepInsTableName
+			continue
+		case stepInsTableName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected table name at %d", tokens[*cursor].Position)
+			}
+			tableName = tokens[*cursor]
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+				step = stepInsColsetName
+				*cursor++
+			} else {
+				step = stepInsValuesKeyword
+			}
+			continue
+		case stepInsColsetName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
+			}
+			columnNames = append(columnNames, tokens[*cursor])
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
+				step = stepInsValuesKeyword
+				*cursor++
+			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
+				step = stepInsColsetName
+				*cursor++
+			} else {
+				return nil, fmt.Errorf("exected comma or closing bracket at %d", tokens[*cursor].Position)
+			}
+			continue
+		case stepInsValuesKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["values"]) {
+				return nil, fmt.Errorf("expected values keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+				return nil, fmt.Errorf("expected opening bracket for values set at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepInsValueValue
+			continue
+		case stepInsValueValue:
+			if !((tokens[*cursor].Kind == t.IdentifierKind) || (tokens[*cursor].Kind == t.NumericKind)) {
+				return nil, fmt.Errorf("values can be only identifiers or numbers but got %s at %d", tokens[*cursor].Value, tokens[*cursor].Position)
+			}
+			values = append(values, tokens[*cursor])
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
+				step = stepEnd
+				*cursor++
+			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
+				step = stepInsValueValue
+				*cursor++
+			} else {
+				return nil, fmt.Errorf("expected comma ar closing bracket at %d", tokens[*cursor].Position)
+			}
+		case stepEnd:
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				return &InsertIntoQuery{
+					Table:       tableName,
+					ColumnNames: columnNames,
+					Values:      values,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)
+			}
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("cannot parse query as INSERT INTO query")
+}
+
+func parseSelectBranch(tokens []*t.Token, cursor *int) (*SelectQuery, error) {
+	var (
+		parsingInProgress bool        = true
+		columns           []*t.Token  = []*t.Token{}
+		tableName         *t.Token    = nil
+		step              parsingStep = stepSelColName
+	)
+	// Initial step assertion
+	if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[*cursor].Position)
+	}
+	*cursor++
+	for *cursor < len(tokens) && parsingInProgress {
+		switch step {
+		case stepSelColName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
+			}
+			columns = append(columns, tokens[*cursor])
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
+				*cursor++
+				continue
+			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
+				*cursor++
+				step = stepSelFromKeyword
+				continue
+			} else {
+				return nil, fmt.Errorf("expected \")\" or comma at %d", tokens[*cursor].Position)
+			}
+		case stepSelFromKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["from"]) {
+				return nil, fmt.Errorf("expected from keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepSelTableName
+			continue
+		case stepSelTableName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected table name at %d", tokens[*cursor].Position)
+			}
+			tableName = tokens[*cursor]
+			*cursor++
+			step = stepEnd
+		case stepEnd:
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				return &SelectQuery{
+					Columns: columns,
+					From:    tableName,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)
+			}
+		}
+	}
+	return nil, fmt.Errorf("cannot parse query as SELECT FROM query")
 }

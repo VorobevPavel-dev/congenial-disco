@@ -9,6 +9,7 @@ import (
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
+	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
@@ -45,15 +46,11 @@ func (s *Session) ToString() string {
 //		string. If request returns string value it will be returned here
 //		error
 func (s *Session) ExecuteCommand(request string) (string, error) {
-	statement := parser.Parse(strings.ToLower(request))
-	if statement == nil {
-		return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
+	statement, err := parser.Parse(strings.ToLower(request))
+	if err != nil {
+		return err.Error(), err
 	}
 	switch statement.Type {
-	case parser.ShowCreateType:
-		if val, ok := s.tables[statement.ShowCreateStatement.TableName.Value]; ok {
-			return val.ShowCreate(), nil
-		}
 	case parser.CreateTableType:
 		err := s.executeCreate(statement)
 		if err != nil {
@@ -74,16 +71,19 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 		}
 		return result, nil
 	}
-	return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
+	return "", errors.New("current command is not supported. Only CREATE TABLE, INSERT INTO, SELECT")
 }
 
 func (s *Session) executeCreate(statement *parser.Statement) error {
-	t := table.Table(table.LinearTable{})
-	t, tn, err := t.Create(statement.CreateTableStatement)
-	if err != nil {
-		return err
+	switch statement.CreateTableStatement.Engine.Value {
+	case "linear":
+		t := table.Table(linear.LinearTable{})
+		t, tn, err := t.Create(statement.CreateTableStatement)
+		if err != nil {
+			return err
+		}
+		s.tables[tn] = t
 	}
-	s.tables[tn] = t
 	return nil
 }
 
@@ -134,12 +134,12 @@ func BenchmarkLinearSimpleInsertion() ([]string, error) {
 	for i := 1; i < 1000000; i++ {
 		session := InitSession()
 		tableName := tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
-		columns := make([]*parser.ColumnDefinition, i)
+		columns := make([]parser.ColumnDefinition, i)
 		columnNames := make([]*tokenizer.Token, i)
 		values := make([]*tokenizer.Token, i)
 		for j := range columns {
 			columnNames[j] = tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
-			columns[j] = &parser.ColumnDefinition{
+			columns[j] = parser.ColumnDefinition{
 				Name: columnNames[j],
 				Datatype: &tokenizer.Token{
 					Value: "text",
@@ -148,7 +148,7 @@ func BenchmarkLinearSimpleInsertion() ([]string, error) {
 			}
 			values[j] = tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
 		}
-		createTableSQL := parser.CreateTableQuery{Name: tableName, Cols: columns}.CreateOriginal()
+		createTableSQL := parser.CreateTableQuery{Name: tableName, Cols: &columns}.CreateOriginal()
 		_, err := session.ExecuteCommand(createTableSQL)
 		if err != nil {
 			return nil, err

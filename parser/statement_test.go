@@ -31,24 +31,23 @@ func TestSelectStatementParsing(t *testing.T) {
 			}
 			inputSQL := inputQuery.CreateOriginal()
 			// t.Logf("Generated SQL: %s", inputSQL)
-			tokens := token.ParseTokenSequence(inputSQL)
-			if tokens == nil || len(*tokens) == 0 {
-				t.Errorf("no tokens extracted from query %s", inputSQL)
-			}
-			result, err := parseSelectStatement(*tokens)
+			result, err := Parse(inputSQL)
 			if err != nil {
-				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+				t.Errorf("an error occured on request %s, err: %v",
 					inputSQL,
-					tokens,
 					err,
 				)
 			}
-			if !inputQuery.Equals(result) {
-				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
-					inputSQL,
-					inputQuery,
-					result,
-				)
+			if result == nil {
+				t.Errorf("no result from parsing %s, error: %s", inputSQL, err.Error())
+			} else {
+				if !inputQuery.Equals(result.SelectStatement) {
+					t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+						inputSQL,
+						inputQuery,
+						result,
+					)
+				}
 			}
 		}
 	})
@@ -61,8 +60,7 @@ func TestSelectStatementParsing(t *testing.T) {
 			"Select a,     b, c from",
 		}
 		for testCase := range inputs {
-			tokenList := *token.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseSelectStatement(tokenList)
+			actualResult, err := Parse(inputs[testCase])
 			if err == nil {
 				t.Errorf("Expected error on set #%d. Values got: %v",
 					testCase, actualResult)
@@ -94,26 +92,25 @@ func TestInsertStatementParsing(t *testing.T) {
 				Values:      values,
 			}
 			inputSQL := (*inputQuery).CreateOriginal()
-			// t.Logf("Generated SQL: %s", inputSQL)
+			t.Logf("Generated SQL: %s", inputSQL)
 			// Start reverse parsing
-			tokens := token.ParseTokenSequence(inputSQL)
-			if tokens == nil || len(*tokens) == 0 {
-				t.Errorf("no tokens extracted from query %s", inputSQL)
-			}
-			result, err := parseInsertIntoStatement(*tokens)
+			result, err := Parse(inputSQL)
 			if err != nil {
-				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+				t.Errorf("an error occured on request %s, err: %v",
 					inputSQL,
-					tokens,
 					err,
 				)
 			}
-			if !inputQuery.Equals(result) {
-				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
-					inputSQL,
-					inputQuery,
-					result,
-				)
+			if result == nil {
+				t.Errorf("no result from parsing %s, error: %s", inputSQL, err.Error())
+			} else {
+				if !inputQuery.Equals(result.InsertStatement) {
+					t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+						inputSQL,
+						inputQuery,
+						result,
+					)
+				}
 			}
 		}
 	})
@@ -180,9 +177,6 @@ func TestInsertStatementParsing(t *testing.T) {
 			}
 		}
 
-		// TODO:
-		// 		Incorrect ";" position
-
 		// Other cases
 		inputs = append(inputs,
 			"table_name",
@@ -196,31 +190,13 @@ func TestInsertStatementParsing(t *testing.T) {
 
 		t.Logf("Generated incorrect inputs: %d", len(inputs))
 		for _, c := range inputs {
-			tokenList := *token.ParseTokenSequence(c)
-			actualResult, err := parseSelectStatement(tokenList)
+			actualResult, err := Parse(c)
 			if err == nil {
 				t.Errorf("Expected error on query %s. Values got: %v",
 					c, actualResult)
 			}
 		}
 	})
-	// t.Run("Test invalid select parsing", func(t *testing.T) {
-	// 	inputs := []string{
-	// 		"Select 1,b,c from test;",
-	// 		"INsert into test values (1,2,3);",
-	// 		"Select from test;",
-	// 		"Select from test",
-	// 		"Select a,     b, c from",
-	// 	}
-	// 	for testCase := range inputs {
-	// 		tokenList := *token.ParseTokenSequence(inputs[testCase])
-	// 		actualResult, err := parseSelectStatement(tokenList)
-	// 		if err == nil {
-	// 			t.Errorf("Expected error on set #%d. Values got: %v",
-	// 				testCase, actualResult)
-	// 		}
-	// 	}
-	// })
 }
 
 func TestCreateTableParsing(t *testing.T) {
@@ -230,40 +206,39 @@ func TestCreateTableParsing(t *testing.T) {
 			// Generating random CREATE TABLE query
 			tableName := token.GenerateRandomToken(token.IdentifierKind)
 			//Generate column definition
-			columns := make([]*ColumnDefinition, rand.Intn(100)+1)
+			columns := make([]ColumnDefinition, rand.Intn(100)+1)
 			for i := range columns {
-				columns[i] = &ColumnDefinition{
+				columns[i] = ColumnDefinition{
 					Name:     token.GenerateRandomToken(token.IdentifierKind),
 					Datatype: token.GenerateRandomToken(token.TypeKind),
 				}
 			}
+			// Choose engine
+			engine := token.GenerateRandomToken(token.EngineKind)
 			inputQuery := &CreateTableQuery{
-				Name: tableName,
-				Cols: columns,
+				Name:   tableName,
+				Cols:   &columns,
+				Engine: engine,
 			}
 			inputSQL := (*inputQuery).CreateOriginal()
-			// t.Logf("Generated SQL: %s", inputSQL)
-			// Test SQL parsing
-			tokens := token.ParseTokenSequence(inputSQL)
-			if tokens == nil || len(*tokens) == 0 {
-				t.Errorf("no tokens extracted from query %s", inputSQL)
-			}
 			// Try to parse token set as CREATE TABLE query
-			result, err := parseCreateTableQuery(*tokens)
+			result, err := Parse(inputSQL)
 			if err != nil {
-				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+				t.Errorf("an error occured on request %s, err: %v",
 					inputSQL,
-					tokens,
 					err,
 				)
 			}
-			// Assert input data equals data in CreateTableQuery
-			if !inputQuery.Equals(result) {
-				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
-					inputSQL,
-					inputQuery,
-					result,
-				)
+			if result == nil {
+				t.Errorf("no result from parsing %s, error: %s", inputSQL, err.Error())
+			} else {
+				if !inputQuery.Equals(result.CreateTableStatement) {
+					t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+						inputSQL,
+						inputQuery,
+						result,
+					)
+				}
 			}
 		}
 	})
@@ -273,8 +248,7 @@ func TestCreateTableParsing(t *testing.T) {
 			"create table test id int, name text;",
 		}
 		for testCase := range inputs {
-			tokenList := *token.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseCreateTableQuery(tokenList)
+			actualResult, err := Parse(inputs[testCase])
 			if err == nil {
 				t.Errorf("Expected error on set #%d. Values got: %v",
 					testCase, actualResult)

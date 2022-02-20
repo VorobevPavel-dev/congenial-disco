@@ -1,4 +1,4 @@
-package table
+package linear
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
+	"github.com/VorobevPavel-dev/congenial-disco/table"
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 	"github.com/VorobevPavel-dev/congenial-disco/utility"
 )
 
 type LinearTable struct {
-	Columns  []*parser.ColumnDefinition
+	Columns  []parser.ColumnDefinition
 	Elements [][]*tokenizer.Token
 	Name     *tokenizer.Token
 }
@@ -23,13 +24,13 @@ func (lt LinearTable) IsInitialized() bool {
 // Create table will initialize columns inside fresh linear table
 // It will take parser.ColumnDefinitions from request and append them to LinearTable.Columns slice
 // Returns table name if all happened without errors
-func (lt LinearTable) Create(req *parser.CreateTableQuery) (Table, string, error) {
-	lt.Columns = make([]*parser.ColumnDefinition, len(req.Cols))
-	for i := range req.Cols {
-		lt.Columns[i] = req.Cols[i]
+func (lt LinearTable) Create(req *parser.CreateTableQuery) (table.Table, string, error) {
+	lt.Columns = make([]parser.ColumnDefinition, len(*req.Cols))
+	for i := range *req.Cols {
+		lt.Columns[i] = (*req.Cols)[i]
 	}
 	lt.Name = req.Name
-	return Table(lt), lt.Name.Value, nil
+	return table.Table(lt), lt.Name.Value, nil
 }
 
 func (lt LinearTable) Select(req *parser.SelectQuery) ([][]*tokenizer.Token, error) {
@@ -78,7 +79,7 @@ func (lt LinearTable) Select(req *parser.SelectQuery) ([][]*tokenizer.Token, err
 	return result, nil
 }
 
-func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (Table, error) {
+func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (table.Table, error) {
 	// typeCorreation[column.Datatype.Value] will give Kind which is supported on current column
 	typeCorreation := map[string]tokenizer.TokenKind{
 		"int":  tokenizer.NumericKind,
@@ -165,7 +166,7 @@ func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (Table, error) {
 		index++
 	}
 	lt.Elements = append(lt.Elements, toInsert)
-	return Table(lt), nil
+	return table.Table(lt), nil
 }
 
 func (lt LinearTable) ShowCreate() string {
@@ -175,6 +176,10 @@ func (lt LinearTable) ShowCreate() string {
 	}
 	initialRequest += ");"
 	return initialRequest
+}
+
+func (lt LinearTable) Engine() string {
+	return "Linear"
 }
 
 func (lt LinearTable) GetColumnsNames() []string {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -24,8 +23,8 @@ func init() {
 	// flag.IntVar(&port, "port", port, "Port used for listenning connections")
 	// flag.Parse()
 
-	flag.StringVar(&benchmarkName, "benchmark", "", "Name of benchmark to run")
-	flag.Parse()
+	// flag.StringVar(&benchmarkName, "benchmark", "", "Name of benchmark to run")
+	// flag.Parse()
 
 	// Validate flags
 	if port < 1024 {

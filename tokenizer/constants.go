@@ -13,6 +13,8 @@ const (
 	IdentifierKind
 	// TypeKind will correspond to every type in request
 	TypeKind
+	// EngineKind will determine type of table
+	EngineKind
 
 	// charset is needed for generating random tokens
 	charset string = "abcdefghijklmnopqrstuvwxyz" +
@@ -24,15 +26,18 @@ const (
 func Constants() map[TokenKind]map[string]*Token {
 	return map[TokenKind]map[string]*Token{
 		KeywordKind: {
-			"select": {Value: "select", Kind: KeywordKind},
-			"from":   {Value: "from", Kind: KeywordKind},
-			"as":     {Value: "as", Kind: KeywordKind},
-			"table":  {Value: "table", Kind: KeywordKind},
-			"create": {Value: "create", Kind: KeywordKind},
-			"insert": {Value: "insert", Kind: KeywordKind},
-			"into":   {Value: "into", Kind: KeywordKind},
-			"values": {Value: "values", Kind: KeywordKind},
-			"show":   {Value: "show", Kind: KeywordKind},
+			"select":   {Value: "select", Kind: KeywordKind},
+			"from":     {Value: "from", Kind: KeywordKind},
+			"as":       {Value: "as", Kind: KeywordKind},
+			"table":    {Value: "table", Kind: KeywordKind},
+			"create":   {Value: "create", Kind: KeywordKind},
+			"insert":   {Value: "insert", Kind: KeywordKind},
+			"into":     {Value: "into", Kind: KeywordKind},
+			"values":   {Value: "values", Kind: KeywordKind},
+			"show":     {Value: "show", Kind: KeywordKind},
+			"with":     {Value: "with", Kind: KeywordKind},
+			"engine":   {Value: "engine", Kind: KeywordKind},
+			"settings": {Value: "settings", Kind: KeywordKind},
 		},
 		SymbolKind: {
 			";": {Value: ";", Kind: SymbolKind},
@@ -46,6 +51,10 @@ func Constants() map[TokenKind]map[string]*Token {
 			"int":  {Value: "int", Kind: TypeKind},
 			"text": {Value: "text", Kind: TypeKind},
 		},
+		EngineKind: {
+			"linear": {Value: "linear", Kind: EngineKind},
+			// "blocked": {Value: "blocked", Kind: EngineKind},
+		},
 	}
 }
 
@@ -57,6 +66,7 @@ func KindMap() *map[TokenKind]string {
 		SymbolKind:     "symbol",
 		IdentifierKind: "identifier",
 		TypeKind:       "type",
+		EngineKind:     "engine",
 	}
 }
 

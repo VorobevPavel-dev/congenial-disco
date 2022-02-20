@@ -2,7 +2,6 @@ package parser
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
@@ -47,68 +46,4 @@ func (slct SelectQuery) CreateOriginal() string {
 		slct.From.Value,
 	)
 	return result
-}
-
-func parseSelectStatement(tokens []*t.Token) (*SelectQuery, error) {
-	// Validate that set of tokens has ';' SymbolKind token at the end
-	if !tokens[len(tokens)-1].Equals(t.Reserved[t.SymbolKind][";"]) {
-		return nil, ErrNoSemicolonAtTheEnd
-	}
-
-	var (
-		columns   []*t.Token
-		tableName *t.Token
-		cursor    int = 0
-	)
-
-	// Process SELECT keyword
-	if !tokens[cursor].Equals(t.Reserved[t.KeywordKind]["select"]) {
-		return nil, fmt.Errorf("expected SELECT keyword at %d", tokens[0].Position)
-	}
-	cursor++
-
-	// Process set of columns if any were specified
-	if !tokens[cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
-		return nil, ErrExpectedToken(t.Reserved[t.SymbolKind]["("], tokens[cursor].Position)
-	}
-	colDefStartPos := cursor
-	cursor++
-	colDefEndPos := t.FindToken(tokens, t.Reserved[t.SymbolKind][")"])
-	if colDefEndPos == colDefStartPos {
-		return nil, errors.New("no columns specified")
-	}
-
-	for cursor = colDefStartPos + 1; cursor < colDefEndPos; cursor++ {
-		if tokens[cursor].Equals(t.Reserved[t.SymbolKind][","]) {
-			cursor++
-		}
-		if tokens[cursor].Kind != t.IdentifierKind {
-			return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
-		}
-		columns = append(columns, tokens[cursor])
-	}
-	cursor++
-
-	// Process FROM keyword
-	if !tokens[cursor].Equals(t.Reserved[t.KeywordKind]["from"]) {
-		return nil, fmt.Errorf("expected FROM keyword at %d", tokens[0].Position)
-	}
-	cursor++
-
-	// Process table name
-	if tokens[cursor].Kind != t.IdentifierKind {
-		return nil, ErrInvalidTokenKind(tokens[cursor], t.IdentifierKind)
-	}
-	tableName = tokens[cursor]
-	cursor++
-
-	// Process ";" symbol at the end
-	if !tokens[cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
-		return nil, ErrExpectedToken(t.Reserved[t.SymbolKind][";"], tokens[cursor].Position)
-	}
-
-	return &SelectQuery{
-		Columns: columns,
-		From:    tableName,
-	}, nil
 }
