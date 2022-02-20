@@ -7,22 +7,15 @@ type parsingStep int
 
 const (
 	// CREATE TABLE branch
-	stepCreateKeyword = iota
-	stepTableKeyword
+
+	stepTableKeyword = iota
 	stepTableName
-	stepColOpenBracket
 	stepColumnName
 	stepColumnType
-	stepColumnComma
-	stepColCloseBracket
 	stepEngineKeyword
 	stepEngineName
-	stepSettingsKeyword
-	stepSettingsName
-	stepSettingsRelation
-	stepSettingsValue
-	stepSettingsComma
 	// INSERT INTO branch
+
 	stepInsIntoKeyword
 	stepInsTableName
 	stepInsColsetName

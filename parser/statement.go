@@ -126,14 +126,13 @@ func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, 
 			}
 			tableName = tokens[*cursor]
 			*cursor++
-			step = stepColOpenBracket
-		case stepColOpenBracket:
 			if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
-				return nil, fmt.Errorf("expected \"(\" at %d", tokens[*cursor].Position)
+				return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[*cursor].Position)
+			} else {
+				*cursor++
+				step = stepColumnName
+				continue
 			}
-			*cursor++
-			step = stepColumnName
-			continue
 		case stepColumnName:
 			if tokens[*cursor].Kind != t.IdentifierKind {
 				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
@@ -172,11 +171,7 @@ func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, 
 			}
 			engine = tokens[*cursor]
 			*cursor++
-			if tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["settings"]) {
-				step = stepSettingsName
-				*cursor++
-				continue
-			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
 				parsingInProgress = false
 			} else {
 				return nil, fmt.Errorf("expected SETTINGS or \";\" symbol at %d", tokens[*cursor].Position)
