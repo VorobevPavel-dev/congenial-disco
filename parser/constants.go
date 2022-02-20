@@ -27,6 +27,10 @@ const (
 	stepSelColName
 	stepSelFromKeyword
 	stepSelTableName
+	// SHOW CREATE branch
+
+	stepShCreateKeyword
+	stepShTableName
 
 	stepEnd
 )

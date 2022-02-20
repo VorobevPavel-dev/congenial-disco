@@ -70,7 +70,15 @@ func QueryToString(q *Query) string {
 
 // Parse will try to parse statement with all parsers successively
 // Returns a Statement struct with only one field not null
-func Parse(request string) (*Statement, error) {
+func Parse(request string) (resultStatement *Statement, err error) {
+
+	// handling unexpected out-of-bounds
+	defer func(err *error) {
+		if panicError := recover(); panicError != nil {
+			*err = fmt.Errorf("panic occured: %v", panicError)
+		}
+	}(&err)
+
 	// Implement request string as a series of tokens
 	tokens := *t.ParseTokenSequence(request)
 	var (
@@ -84,32 +92,48 @@ func Parse(request string) (*Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Statement{
+		resultStatement = &Statement{
 			CreateTableStatement: query,
 			Type:                 CreateTableType,
-		}, nil
+		}
+		err = nil
 	case "insert":
 		cursor++
 		query, err := parseInsertIntoBranch(tokens, &cursor)
 		if err != nil {
 			return nil, err
 		}
-		return &Statement{
+		resultStatement = &Statement{
 			InsertStatement: query,
 			Type:            InsertType,
-		}, nil
+		}
+		err = nil
 	case "select":
 		cursor++
 		query, err := parseSelectBranch(tokens, &cursor)
 		if err != nil {
 			return nil, err
 		}
-		return &Statement{
+		resultStatement = &Statement{
 			SelectStatement: query,
 			Type:            SelectType,
-		}, nil
+		}
+		err = nil
+	case "show":
+		cursor++
+		query, err := parseShowCreateBranch(tokens, &cursor)
+		if err != nil {
+			return nil, err
+		}
+		resultStatement = &Statement{
+			ShowCreateStatement: query,
+			Type:                ShowCreateType,
+		}
+		err = nil
+	default:
+		err = fmt.Errorf("current operation is not supported")
 	}
-	return nil, fmt.Errorf("current operation (%s) is not supported", tokens[cursor].Value)
+	return resultStatement, err
 }
 
 func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, error) {
@@ -284,17 +308,16 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 
 func parseSelectBranch(tokens []*t.Token, cursor *int) (*SelectQuery, error) {
 	var (
-		parsingInProgress bool        = true
-		columns           []*t.Token  = []*t.Token{}
-		tableName         *t.Token    = nil
-		step              parsingStep = stepSelColName
+		columns   []*t.Token  = []*t.Token{}
+		tableName *t.Token    = nil
+		step      parsingStep = stepSelColName
 	)
 	// Initial step assertion
 	if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
 		return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[*cursor].Position)
 	}
 	*cursor++
-	for *cursor < len(tokens) && parsingInProgress {
+	for *cursor < len(tokens) {
 		switch step {
 		case stepSelColName:
 			if tokens[*cursor].Kind != t.IdentifierKind {
@@ -338,4 +361,47 @@ func parseSelectBranch(tokens []*t.Token, cursor *int) (*SelectQuery, error) {
 		}
 	}
 	return nil, fmt.Errorf("cannot parse query as SELECT FROM query")
+}
+
+func parseShowCreateBranch(tokens []*t.Token, cursor *int) (*ShowCreateQuery, error) {
+	var (
+		tableName *t.Token    = nil
+		step      parsingStep = stepShCreateKeyword
+	)
+	for *cursor < len(tokens) {
+		switch step {
+		case stepShCreateKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["create"]) {
+				return nil, fmt.Errorf("expected create keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
+				*cursor++
+				step = stepShTableName
+			} else {
+				return nil, fmt.Errorf("expected \"(\" symbol at %d", tokens[*cursor].Position)
+			}
+		case stepShTableName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected table name at %d", tokens[*cursor].Position)
+			}
+			tableName = tokens[*cursor]
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
+				*cursor++
+				step = stepEnd
+			} else {
+				return nil, fmt.Errorf("expected \")\" symbol at %d", tokens[*cursor].Position)
+			}
+		case stepEnd:
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				return &ShowCreateQuery{
+					TableName: tableName,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)
+			}
+		}
+	}
+	return nil, fmt.Errorf("cannot parse query as SHOW CREATE query")
 }

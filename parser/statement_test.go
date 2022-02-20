@@ -272,21 +272,23 @@ func TestShowCreateParsing(t *testing.T) {
 				t.Errorf("no tokens extracted from query %s", inputSQL)
 			}
 			// Try to parse token set as SHOW CREATE query
-			result, err := parseShowCreateQuery(*tokens)
+			result, err := Parse(inputSQL)
 			if err != nil {
-				t.Errorf("an error occured on request %s, tokens: %v, err: %v",
+				t.Errorf("an error occured on request %s, err: %v",
 					inputSQL,
-					tokens,
 					err,
 				)
 			}
-			// Assert input data equals data in ShowCreateQuery
-			if !inputQuery.Equals(result) {
-				t.Errorf("requests are different on request %s, excpected: %v, got: %v",
-					inputSQL,
-					inputQuery,
-					result,
-				)
+			if result == nil {
+				t.Errorf("no result from parsing %s, error: %s", inputSQL, err.Error())
+			} else {
+				if !inputQuery.Equals(result.ShowCreateStatement) {
+					t.Errorf("requests are different on request %s, excpected: %v, got: %v",
+						inputSQL,
+						inputQuery,
+						result,
+					)
+				}
 			}
 		}
 	})
@@ -297,7 +299,7 @@ func TestShowCreateParsing(t *testing.T) {
 		//		Not identifier kind of <table_name>
 		// TODO: Dynamic search for token kinds
 		for i := 0; i < 10; i++ {
-			tokenKind := rand.Intn(5)
+			tokenKind := rand.Intn(len(token.Reserved))
 			tableName := token.GenerateRandomToken(token.TokenKind(tokenKind))
 			if tableName.Kind == token.IdentifierKind {
 				i--
@@ -331,13 +333,13 @@ func TestShowCreateParsing(t *testing.T) {
 			"show create table_name);",
 			"show create (table_name)",
 		}...)
-
-		for testCase := range inputs {
-			tokenList := *token.ParseTokenSequence(inputs[testCase])
-			actualResult, err := parseShowCreateQuery(tokenList)
+		for _, c := range inputs {
+			actualResult, err := Parse(c)
 			if err == nil {
-				t.Errorf("Expected error on set #%d. Values got: %v",
-					testCase, actualResult)
+				t.Errorf("Expected error on query %s. Values got: %v",
+					c, actualResult)
+			} else {
+				t.Logf("got error: %v", err)
 			}
 		}
 	})
