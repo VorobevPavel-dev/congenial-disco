@@ -15,7 +15,7 @@ func TestCommandSequenceExecution(t *testing.T) {
 	t.Run("Check table creation sequence", func(t *testing.T) {
 		// Create table and check if table was appended to session tables map
 		// Also check if columns were appended
-		createTableCommand := "CREATE TABLE test (id INT, name TEXT);"
+		createTableCommand := "CREATE TABLE test (id INT, name TEXT) engine linear;"
 		expectedNumOfColumns := 2
 		_, err := session.ExecuteCommand(createTableCommand)
 		if err != nil {

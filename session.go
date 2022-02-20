@@ -51,10 +51,6 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 		return err.Error(), err
 	}
 	switch statement.Type {
-	// case parser.ShowCreateType:
-	// 	if val, ok := s.tables[statement.ShowCreateStatement.TableName.Value]; ok {
-	// 		return val.ShowCreate(), nil
-	// 	}
 	case parser.CreateTableType:
 		err := s.executeCreate(statement)
 		if err != nil {
@@ -67,16 +63,15 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 		if err != nil {
 			return fmt.Sprint(err), err
 		}
+		return "ok", nil
+	case parser.SelectType:
+		result, err := s.executeSelect(statement)
+		if err != nil {
+			return fmt.Sprint(err), err
+		}
+		return result, nil
 	}
-	// 	return "ok", nil
-	// case parser.SelectType:
-	// 	result, err := s.executeSelect(statement)
-	// 	if err != nil {
-	// 		return fmt.Sprint(err), err
-	// 	}
-	// 	return result, nil
-	// }
-	return "", errors.New("current command is not supported. Only CREATE TABLE, SHOW CREATE(), INSERT INTO, SELECT")
+	return "", errors.New("current command is not supported. Only CREATE TABLE, INSERT INTO, SELECT")
 }
 
 func (s *Session) executeCreate(statement *parser.Statement) error {

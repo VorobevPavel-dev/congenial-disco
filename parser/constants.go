@@ -22,5 +22,11 @@ const (
 	stepInsValuesKeyword
 	stepInsValuesetOpenBracket
 	stepInsValueValue
+	// SELECT branch
+
+	stepSelColName
+	stepSelFromKeyword
+	stepSelTableName
+
 	stepEnd
 )
