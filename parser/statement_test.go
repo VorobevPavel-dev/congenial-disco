@@ -54,7 +54,6 @@ func TestSelectStatementParsing(t *testing.T) {
 	t.Run("Test invalid select parsing", func(t *testing.T) {
 		inputs := []string{
 			"Select 1,b,c from test;",
-			"INsert into test values (1,2,3);",
 			"Select from test;",
 			"Select from test",
 			"Select a,     b, c from",
@@ -92,7 +91,7 @@ func TestInsertStatementParsing(t *testing.T) {
 				Values:      values,
 			}
 			inputSQL := (*inputQuery).CreateOriginal()
-			t.Logf("Generated SQL: %s", inputSQL)
+			// t.Logf("Generated SQL: %s", inputSQL)
 			// Start reverse parsing
 			result, err := Parse(inputSQL)
 			if err != nil {
