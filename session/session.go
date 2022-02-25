@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"encoding/json"
@@ -20,9 +20,42 @@ type Session struct {
 
 // InitSession creates an initial map for tables and returns pointer for Session struct
 func InitSession() Session {
-	return Session{
+	session := Session{
 		tables: make(map[string]table.Table),
 	}
+	session.tables["system.tables"] = linear.LinearTable{
+		Columns: []parser.ColumnDefinition{
+			{
+				Name: &tokenizer.Token{
+					Value: "table_name",
+					Kind:  tokenizer.IdentifierKind,
+				},
+				Datatype: &tokenizer.Token{
+					Value: "text",
+					Kind:  tokenizer.IdentifierKind,
+				},
+			},
+			{
+				Name: &tokenizer.Token{
+					Value: "engine_type",
+					Kind:  tokenizer.IdentifierKind,
+				},
+				Datatype: &tokenizer.Token{
+					Value: "text",
+					Kind:  tokenizer.IdentifierKind,
+				},
+			},
+		},
+		Name: &tokenizer.Token{
+			Value: "system.tables",
+			Kind:  tokenizer.IdentifierKind,
+		},
+		Elements: [][]*tokenizer.Token{{
+			{Value: "system.tables", Kind: tokenizer.IdentifierKind},
+			{Value: "\"linear\"", Kind: tokenizer.IdentifierKind},
+		}},
+	}
+	return session
 }
 
 // CountTables returns number of table in current run of engine
@@ -75,15 +108,26 @@ func (s *Session) ExecuteCommand(request string) (string, error) {
 }
 
 func (s *Session) executeCreate(statement *parser.Statement) error {
-	switch statement.CreateTableStatement.Engine.Value {
+	var (
+		table_name string
+		engine     string
+	)
+	engine = statement.CreateTableStatement.Engine.Value
+	switch engine {
 	case "linear":
 		t := table.Table(linear.LinearTable{})
 		t, tn, err := t.Create(statement.CreateTableStatement)
 		if err != nil {
 			return err
 		}
+		table_name = statement.CreateTableStatement.Name.Value
 		s.tables[tn] = t
+	default:
+		return fmt.Errorf("current engine %s is not supported", engine)
 	}
+	// Add table to system.tables
+	request, _ := parser.Parse(fmt.Sprintf("INSERT INTO system.tables VALUES (%s, \"%s\");", table_name, engine))
+	s.executeInsert(request)
 	return nil
 }
 

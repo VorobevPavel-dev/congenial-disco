@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"math/rand"
@@ -49,6 +49,13 @@ func TestCommandSequenceExecution(t *testing.T) {
 	})
 	t.Run("Check table selection", func(t *testing.T) {
 		result, err := session.ExecuteCommand("SELECT (id, name) FROM test;")
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("Result of select: \n%s", result)
+	})
+	t.Run("Check tables list", func(t *testing.T) {
+		result, err := session.ExecuteCommand("SELECT (table_name, engine_type) FROM system.tables;")
 		if err != nil {
 			t.Error(err)
 		}

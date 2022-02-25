@@ -7,26 +7,17 @@ import (
 	"strings"
 	"sync"
 
+	s "github.com/VorobevPavel-dev/congenial-disco/session"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	port          int     = 9094
-	session       Session = InitSession()
-	benchmarkName string
-	benchmarks    map[string]func() ([]string, error) = map[string]func() ([]string, error){
-		"SimpleLinearInsert": BenchmarkLinearSimpleInsertion,
-	}
+	port    int       = 9094
+	session s.Session = s.InitSession()
+	// benchmarkName string
 )
 
 func init() {
-	// flag.IntVar(&port, "port", port, "Port used for listenning connections")
-	// flag.Parse()
-
-	// flag.StringVar(&benchmarkName, "benchmark", "", "Name of benchmark to run")
-	// flag.Parse()
-
-	// Validate flags
 	if port < 1024 {
 		log.Error("Port number must be > 1024")
 		os.Exit(101)
@@ -34,23 +25,6 @@ func init() {
 }
 
 func main() {
-	if benchmarkName != "" {
-		if benchmarkFunc, ok := benchmarks[benchmarkName]; ok {
-			fmt.Print("Running benchmart", benchmarkName)
-			result, err := benchmarkFunc()
-			if err != nil {
-				fmt.Printf("%s", err)
-				os.Exit(1)
-			}
-			for _, res := range result {
-				fmt.Println(res)
-			}
-		} else {
-			fmt.Printf("Chosen benchmark %s is not provided", benchmarkName)
-			os.Exit(2)
-		}
-		os.Exit(0)
-	}
 	l, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 	if err != nil {
 		log.Errorf("Cannot start server, err: %v", err)
