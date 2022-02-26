@@ -92,94 +92,9 @@ func TestInsertStatementParsing(t *testing.T) {
 		}
 	})
 	t.Run("Test invalid insert parsing", func(t *testing.T) {
-		nextPermutation := func(input []*token.Token) []*token.Token {
-			return append(input[1:], input[0])
-		}
-		inputs := []string{}
-
-		template := "INSERT INTO %s %s VALUES %s;"
-
-		for _, tt := range []token.TokenKind{
-			token.NumericKind,
-			token.KeywordKind,
-			token.SymbolKind,
-			token.TypeKind,
-		} {
-			// Incorrect type of <table_name>
-			incTableName := token.GenerateRandomToken(tt)
-			inputs = append(inputs, fmt.Sprintf(template, incTableName.Value, "(test)", "1"))
-
-			// Incorrect type of <column_name> in different postions
-			incColumnName := token.GenerateRandomToken(tt)
-			columnsCount := rand.Intn(10) + 1
-			columns := make([]*token.Token, columnsCount)
-			var values [][]*token.Token
-			for i := range columns {
-				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
-			}
-			for i := 1; i < rand.Intn(10)+1; i++ {
-				currentValueSet := []*token.Token{}
-				for range columns {
-					currentValueSet = append(currentValueSet,
-						token.GenerateRandomToken(
-							getRandomFromKinds(
-								token.NumericKind,
-								token.IdentifierKind,
-							),
-						))
-				}
-				values = append(values, currentValueSet)
-			}
-			columns[0] = incColumnName
-			for i := 0; i < len(columns); i++ {
-				inputs = append(inputs, (&InsertIntoQuery{
-					Table:       token.GenerateRandomToken(token.IdentifierKind),
-					ColumnNames: columns,
-					Values:      values,
-				}).CreateOriginal())
-				columns = nextPermutation(columns)
-			}
-		}
-		// Incorrect value type of <value> in different positions
-		for _, tt := range []token.TokenKind{
-			token.KeywordKind,
-			token.SymbolKind,
-			token.TypeKind,
-		} {
-			columnsCount := rand.Intn(10) + 1
-			columns := make([]*token.Token, columnsCount)
-			var values [][]*token.Token
-			for i := range columns {
-				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
-			}
-			for i := 1; i < rand.Intn(10)+1; i++ {
-				currentValueSet := []*token.Token{}
-				for range columns {
-					currentValueSet = append(currentValueSet,
-						token.GenerateRandomToken(
-							getRandomFromKinds(
-								token.NumericKind,
-								token.IdentifierKind,
-							),
-						))
-				}
-				values = append(values, currentValueSet)
-			}
-			for rowIndex := range values {
-				values[rowIndex][0] = token.GenerateRandomToken(tt)
-			}
-			for i := 0; i < len(columns); i++ {
-				inputs = append(inputs, (&InsertIntoQuery{
-					Table:       token.GenerateRandomToken(token.IdentifierKind),
-					ColumnNames: columns,
-					Values:      values,
-				}).CreateOriginal())
-				columns = nextPermutation(columns)
-			}
-		}
 
 		// Other cases
-		inputs = append(inputs,
+		inputs := []string{
 			"table_name",
 			"ins into table_name values (1);",
 			"insert in table_name values (1);",
@@ -187,7 +102,7 @@ func TestInsertStatementParsing(t *testing.T) {
 			"insert table_name values (1);",
 			"into table_name values (1);",
 			"table_name values (1);",
-		)
+		}
 
 		t.Logf("Generated incorrect inputs: %d", len(inputs))
 		for _, c := range inputs {

@@ -17,9 +17,8 @@ import (
 // Number of columns must be exact same as number of provided values.
 // If no <column_name> specified then number of <valueX> must be exact as number of columns in target table.
 type InsertIntoQuery struct {
-	Table       *t.Token
-	ColumnNames []*t.Token
-	Values      [][]*t.Token
+	Table  *t.Token
+	Values [][]*t.Token
 }
 
 // String method needs to be implemented in order to implement Query interface.
@@ -44,16 +43,6 @@ func (ins InsertIntoQuery) Equals(other *InsertIntoQuery) bool {
 			}
 		}
 	}
-
-	if len(ins.ColumnNames) != len(other.ColumnNames) {
-		return false
-	}
-
-	for index := range ins.ColumnNames {
-		if !ins.ColumnNames[index].Equals(other.ColumnNames[index]) {
-			return false
-		}
-	}
 	return ins.Table.Equals(other.Table)
 }
 
@@ -64,9 +53,8 @@ func (ins InsertIntoQuery) CreateOriginal() string {
 	for _, set := range ins.Values {
 		valuesSets = append(valuesSets, t.Bracketize(set))
 	}
-	result := fmt.Sprintf("INSERT INTO %s %s VALUES %s;",
+	result := fmt.Sprintf("INSERT INTO %s VALUES %s;",
 		ins.Table.Value,
-		t.Bracketize(ins.ColumnNames),
 		strings.Join(valuesSets, ", "),
 	)
 	return result

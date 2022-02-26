@@ -37,12 +37,12 @@ func TestCommandSequenceExecution(t *testing.T) {
 		if session.tables["test"].Count() != 1 {
 			t.Errorf("expected only one row after insertion, got %d", session.tables["test"].Count())
 		}
-		_, err = session.ExecuteCommand("INSERT INTO test (id, name) VALUES (1, test_value);")
+		_, err = session.ExecuteCommand("INSERT INTO test VALUES (1, test_value), (2, test_value2);")
 		if err != nil {
 			t.Error(err)
 		}
-		if session.tables["test"].Count() != 2 {
-			t.Errorf("expected only two rows after insertion, got %d", session.tables["test"].Count())
+		if session.tables["test"].Count() != 3 {
+			t.Errorf("expected only three rows after insertion, got %d", session.tables["test"].Count())
 		}
 	})
 	t.Run("Check table selection", func(t *testing.T) {

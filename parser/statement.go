@@ -225,7 +225,6 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 		parsingInProgress bool         = true
 		step              parsingStep  = stepInsIntoKeyword
 		tableName         *t.Token     = nil
-		columnNames       []*t.Token   = []*t.Token{}
 		values            [][]*t.Token = [][]*t.Token{}
 		currentValueSet   []*t.Token
 	)
@@ -244,29 +243,7 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 			}
 			tableName = tokens[*cursor]
 			*cursor++
-			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
-				step = stepInsColsetName
-				*cursor++
-			} else {
-				step = stepInsValuesKeyword
-			}
-			continue
-		case stepInsColsetName:
-			if tokens[*cursor].Kind != t.IdentifierKind {
-				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
-			}
-			columnNames = append(columnNames, tokens[*cursor])
-			*cursor++
-			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
-				step = stepInsValuesKeyword
-				*cursor++
-			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
-				step = stepInsColsetName
-				*cursor++
-			} else {
-				return nil, fmt.Errorf("exected comma or closing bracket at %d", tokens[*cursor].Position)
-			}
-			continue
+			step = stepInsValuesKeyword
 		case stepInsValuesKeyword:
 			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["values"]) {
 				return nil, fmt.Errorf("expected values keyword at %d", tokens[*cursor].Position)
@@ -310,9 +287,8 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 		case stepEnd:
 			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
 				return &InsertIntoQuery{
-					Table:       tableName,
-					ColumnNames: columnNames,
-					Values:      values,
+					Table:  tableName,
+					Values: values,
 				}, nil
 			} else {
 				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)
@@ -431,14 +407,10 @@ func GenerateStatement(kind queryKind) (*Statement, string) {
 	switch kind {
 	case InsertType:
 		var (
-			values  [][]*t.Token
-			columns []*t.Token
+			values [][]*t.Token
 		)
 		tableName := t.GenerateRandomToken(t.IdentifierKind)
 		columnCount := rand.Intn(10) + 1
-		for i := 0; i < columnCount; i++ {
-			columns = append(columns, t.GenerateRandomToken(t.IdentifierKind))
-		}
 		// number of inserting sets
 		for i := 0; i < rand.Intn(5)+1; i++ {
 			tempValues := []*t.Token{}
@@ -453,9 +425,8 @@ func GenerateStatement(kind queryKind) (*Statement, string) {
 			values = append(values, tempValues)
 		}
 		inputQuery := InsertIntoQuery{
-			Table:       tableName,
-			ColumnNames: columns,
-			Values:      values,
+			Table:  tableName,
+			Values: values,
 		}
 		inputSQL := inputQuery.CreateOriginal()
 		return &Statement{
