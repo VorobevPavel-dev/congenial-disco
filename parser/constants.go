@@ -28,6 +28,10 @@ const (
 	stepSelColName
 	stepSelFromKeyword
 	stepSelTableName
+	stepSelWhereKeyword
+	stepSelCondColName
+	stepSelCondSymbol
+	stepSelCondValue
 	// SHOW CREATE branch
 
 	stepShCreateKeyword

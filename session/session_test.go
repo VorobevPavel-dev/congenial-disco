@@ -1,65 +1,52 @@
 package session
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
-	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
 	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
+type command struct {
+	SQL            string `json:"sql"`
+	ExpectedOutput string `json:"expected_output"`
+	ExpectError    bool   `json:"expect_error"`
+}
+
 func TestCommandSequenceExecution(t *testing.T) {
-	session := InitSession()
-	t.Run("Check table creation sequence", func(t *testing.T) {
-		// Create table and check if table was appended to session tables map
-		// Also check if columns were appended
-		createTableCommand := "CREATE TABLE test (id INT, name TEXT) engine linear;"
-		expectedNumOfColumns := 2
-		_, err := session.ExecuteCommand(createTableCommand)
+	var (
+		session           Session = InitSession()
+		inputSequenceFile string  = "./input_data.json"
+		rawSequence       []byte
+		inputSequence     []command
+	)
+	defer func() {
+		if err := recover(); err != nil {
+			t.Errorf("Unexpected panic: %v", err)
+		}
+	}()
+	rawSequence, _ = ioutil.ReadFile(inputSequenceFile)
+	json.Unmarshal(rawSequence, &inputSequence)
+	for index, command := range inputSequence {
+		result, err := session.ExecuteCommand(command.SQL)
 		if err != nil {
-			t.Error(err)
+			if command.ExpectError {
+				continue
+			}
+			t.Errorf("error on command #%d: %v", index, err)
 		}
-		// Check if session.tables has "test" table
-		if _, ok := session.tables["test"]; !ok {
-			t.Error("No required table \"test\" was found in tables map")
+		diff := strings.Compare(strings.TrimSpace(result), command.ExpectedOutput)
+		if diff != 0 {
+			t.Errorf(
+				"actial result differs from expected: %s => %s",
+				strings.TrimSpace(result),
+				command.ExpectedOutput,
+			)
 		}
-		columnNames := session.tables["test"].(linear.LinearTable).GetColumnsNames()
-		if len(columnNames) != expectedNumOfColumns {
-			t.Errorf("Count of columns differ. Expected: %d, got: %v", expectedNumOfColumns, columnNames)
-		}
-		t.Logf("Created table has columns: %s", session.tables["test"].GetColumns())
-	})
-	t.Run("Check table insertion", func(t *testing.T) {
-		_, err := session.ExecuteCommand("INSERT INTO test VALUES (1, test);")
-		if err != nil {
-			t.Error(err)
-		}
-		if session.tables["test"].Count() != 1 {
-			t.Errorf("expected only one row after insertion, got %d", session.tables["test"].Count())
-		}
-		_, err = session.ExecuteCommand("INSERT INTO test VALUES (1, test_value), (2, test_value2);")
-		if err != nil {
-			t.Error(err)
-		}
-		if session.tables["test"].Count() != 3 {
-			t.Errorf("expected only three rows after insertion, got %d", session.tables["test"].Count())
-		}
-	})
-	t.Run("Check table selection", func(t *testing.T) {
-		result, err := session.ExecuteCommand("SELECT (id, name) FROM test;")
-		if err != nil {
-			t.Error(err)
-		}
-		t.Logf("Result of select: \n%s", result)
-	})
-	t.Run("Check tables list", func(t *testing.T) {
-		result, err := session.ExecuteCommand("SELECT (table_name, engine_type) FROM system.tables;")
-		if err != nil {
-			t.Error(err)
-		}
-		t.Logf("Result of select: \n%s", result)
-	})
-	t.Logf("State after all tests: %s", session.ToString())
+	}
 }
 
 func BenchmarkMassiveTableCreation(b *testing.B) {

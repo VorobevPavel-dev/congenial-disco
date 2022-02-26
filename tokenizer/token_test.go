@@ -51,7 +51,7 @@ func TestTokenSequenceParsing(t *testing.T) {
 		sequenceLength := 20
 
 		for j := 0; j < numberOfTests; j++ {
-			kind := rand.Intn(5)
+			kind := rand.Intn(len(Reserved))
 			generatedSequence := make([]string, sequenceLength)
 			expectedOutputSequence := make([]*Token, sequenceLength)
 			for i := range generatedSequence {

@@ -2,13 +2,11 @@ package linear
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
-	"github.com/VorobevPavel-dev/congenial-disco/utility"
 )
 
 type LinearTable struct {
@@ -35,46 +33,83 @@ func (lt LinearTable) Create(req *parser.CreateTableQuery) (table.Table, string,
 
 func (lt LinearTable) Select(req *parser.SelectQuery) ([][]*tokenizer.Token, error) {
 	tableColumns := lt.GetColumnsNames()
-	// Build slice of indexes of columns to select
-	indexes := []int{}
+
+	// Map with correlation between column index and column name
+	// For example if there is a table with columns id int, name text
+	// indexCorrelation will be
+	// id: 0
+	// name: 1
+	indexCorrelation := make(map[string]int)
+	for index, column := range tableColumns {
+		indexCorrelation[column] = index
+	}
+
+	indexesToSelect := []int{}
+
+	// Get indexes of columns to select
 	for _, columnToSelect := range req.Columns {
-		// Assert that all columns in request are actually inside table
-		if !utility.StringIsIn(columnToSelect.Value, tableColumns) {
+		if index, ok := indexCorrelation[columnToSelect.Value]; !ok {
 			return nil, fmt.Errorf("column with name %s is not represented inside table (actual columns: [%s])",
 				columnToSelect,
 				lt.GetColumns(),
 			)
+		} else {
+			indexesToSelect = append(indexesToSelect, index)
 		}
-		indexes = append(indexes, utility.FindStringInSlice(tableColumns, columnToSelect.Value))
 	}
 
-	// Sort indexes for pretty-print
-	sort.Slice(indexes, func(i, j int) bool {
-		return indexes[i] < indexes[j]
-	})
+	// Map with correlation between column index and array of conditions on it
+	// For table with columns id int, name text
+	// and conditions id > 5 and id <10 and name == test
+	// conditionCorrelation will be
+	// 0: [{id > 5}, {id < 10}]
+	// 1: [{name == test}]
+	var (
+		index int
+		ok    bool
+	)
+	conditionCorrelation := make(map[int][]*parser.Condition)
+	for _, condition := range req.Conditions {
+		// Get index of column under condition
+		if index, ok = indexCorrelation[condition.Column.Value]; !ok {
+			return nil, fmt.Errorf("column %s not in table", condition.Column.Value)
+		}
+		conditionCorrelation[index] = append(conditionCorrelation[index], condition)
+	}
 
-	header := make([]*tokenizer.Token, len(indexes))
-	for i, extractedHeaderPosition := range indexes {
+	// Construct header for output. Contains column names
+	header := make([]*tokenizer.Token, len(indexesToSelect))
+	for i, extractedHeaderPosition := range indexesToSelect {
 		header[i] = lt.Columns[extractedHeaderPosition].Name
 	}
 
 	// Go around table
-	result := [][]*tokenizer.Token{}
-	result = append(result, header)
+	result := [][]*tokenizer.Token{header}
+
+	var selectRow bool = true
 	for _, currentRow := range lt.Elements {
-		nullCounter := 0
-		extractedValues := make([]*tokenizer.Token, len(lt.Columns))
-		for i, columnIndex := range indexes {
-			value := currentRow[columnIndex]
-			if value.Value == "null" {
-				nullCounter++
-			}
-			extractedValues[i] = currentRow[columnIndex]
-			if nullCounter == len(indexes) {
-				continue
+		// Check if row passes all conditions
+		for columnIndex, element := range currentRow {
+			for _, condition := range conditionCorrelation[columnIndex] {
+				passes, err := condition.EvaluateWithValues(element)
+				if err != nil {
+					return nil, fmt.Errorf("error while checking conditions: %v", err)
+				}
+				if !passes {
+					selectRow = false
+					break
+				}
 			}
 		}
-		result = append(result, extractedValues)
+		// Get necessary columns
+		extractedValues := []*tokenizer.Token{}
+		if selectRow {
+			for _, columnIndex := range indexesToSelect {
+				extractedValues = append(extractedValues, currentRow[columnIndex])
+			}
+			result = append(result, extractedValues)
+		}
+		selectRow = true
 	}
 	return result, nil
 }
@@ -95,7 +130,7 @@ func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (table.Table, error) {
 	for _, valueSet := range req.Values {
 		if len(valueSet) != len(lt.Columns) {
 			return nil, fmt.Errorf(
-				"value set ahs incorrect number of values: %s",
+				"value set has incorrect number of values: %s",
 				tokenizer.Bracketize(valueSet),
 			)
 		}
@@ -127,10 +162,7 @@ func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (table.Table, error) {
 		expectedType := columnCorrelation[columnName]
 		for i, value := range insertingValues {
 			// get original set for error message
-			failedIndex := []*tokenizer.Token{}
-			for j := range req.Values {
-				failedIndex = append(failedIndex, req.Values[j][i])
-			}
+			failedIndex := req.Values[i]
 			if value.Kind != expectedType {
 				return nil, fmt.Errorf(
 					"for valueset %s value %s has incorrect type (expected %s, got: %s",

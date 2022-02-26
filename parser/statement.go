@@ -300,9 +300,11 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 
 func parseSelectBranch(tokens []*t.Token, cursor *int) (*SelectQuery, error) {
 	var (
-		columns   []*t.Token  = []*t.Token{}
-		tableName *t.Token    = nil
-		step      parsingStep = stepSelColName
+		columns          []*t.Token   = []*t.Token{}
+		tableName        *t.Token     = nil
+		step             parsingStep  = stepSelColName
+		condition        []*Condition = []*Condition{}
+		currentCondition *Condition
 	)
 	// Initial step assertion
 	if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
@@ -340,12 +342,50 @@ func parseSelectBranch(tokens []*t.Token, cursor *int) (*SelectQuery, error) {
 			}
 			tableName = tokens[*cursor]
 			*cursor++
+			if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				step = stepSelWhereKeyword
+				continue
+			}
+			step = stepEnd
+			continue
+		case stepSelWhereKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["where"]) {
+				return nil, fmt.Errorf("expected where keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepSelCondColName
+			currentCondition = &Condition{}
+			continue
+		case stepSelCondColName:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
+			}
+			currentCondition.Column = tokens[*cursor]
+			*cursor++
+			step = stepSelCondSymbol
+			continue
+		case stepSelCondSymbol:
+			if tokens[*cursor].Kind != t.SymbolKind {
+				return nil, fmt.Errorf("expected boolean symbol at %d", tokens[*cursor].Position)
+			}
+			currentCondition.ConditionSymbol = tokens[*cursor]
+			*cursor++
+			step = stepSelCondValue
+			continue
+		case stepSelCondValue:
+			if !((tokens[*cursor].Kind == t.IdentifierKind) || (tokens[*cursor].Kind == t.NumericKind)) {
+				return nil, fmt.Errorf("values can be only identifiers or numbers but got %s at %d", tokens[*cursor].Value, tokens[*cursor].Position)
+			}
+			currentCondition.Value = tokens[*cursor]
+			condition = append(condition, currentCondition)
+			*cursor++
 			step = stepEnd
 		case stepEnd:
 			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
 				return &SelectQuery{
-					Columns: columns,
-					From:    tableName,
+					Columns:    columns,
+					From:       tableName,
+					Conditions: condition,
 				}, nil
 			} else {
 				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)

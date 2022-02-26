@@ -1,0 +1,42 @@
+[
+    {
+        "sql": "CREATE TABLE test (id INT, name TEXT) ENGINE linear;",
+        "expected_output": "ok",
+        "expect_error": false
+    },
+    {
+        "sql": "INSERT INTO test VALUES (1, test_1);",
+        "expected_output": "ok",
+        "expect_error": false
+    },
+    {
+        "sql": "INSERT INTO test VALUES (2, test_2), (3, test_3), (4, test_4);",
+        "expected_output": "ok",
+        "expect_error": false
+    },
+    {
+        "sql": "SELECT (id, name) FROM test;",
+        "expected_output":"id,name\n1,test_1\n2,test_2\n3,test_3\n4,test_4",
+        "expect_error": false
+    },
+    {
+        "sql": "SELECT (id, name) FROM test WHERE id == 1;",
+        "expected_output":"id,name\n1,test_1",
+        "expect_error": false
+    },
+    {
+        "sql": "SELECT (name) FROM test WHERE id < 3;",
+        "expected_output":"name\ntest_1\ntest_2",
+        "expect_error": false
+    },
+    {
+        "sql": "SELECT (name) FROM test WHERE id > 2;",
+        "expected_output":"name\ntest_3\ntest_4",
+        "expect_error": false
+    },
+    {
+        "sql": "SELECT (table_name, engine_type) FROM system.tables;",
+        "expected_output":"table_name,engine_type\nsystem.tables,\"linear\"\ntest,\"linear\"",
+        "expect_error": false
+    }
+]
