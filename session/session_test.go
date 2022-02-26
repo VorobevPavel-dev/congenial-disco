@@ -1,9 +1,7 @@
 package session
 
 import (
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
@@ -87,50 +85,6 @@ func BenchmarkMassiveTableCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StartTimer()
 		_, err := session.ExecuteCommand(inputs[i])
-		b.StopTimer()
-		if err != nil {
-			b.Error(err)
-		}
-	}
-}
-
-// Will create table with 100 columns and b.N rows only with IdentifierKind tokens
-func BenchmarkSimpleInsertion(b *testing.B) {
-	rand.Seed(time.Now().Unix())
-	session := InitSession()
-	columnCount := 1
-	// Generate table
-	tableName := token.GenerateRandomToken(token.IdentifierKind)
-	tableColumns := make([]parser.ColumnDefinition, columnCount)
-	for i := range tableColumns {
-		tableColumns[i] = parser.ColumnDefinition{
-			Name: token.GenerateRandomToken(token.IdentifierKind),
-			Datatype: &token.Token{
-				Value: "text",
-				Kind:  token.TypeKind,
-			},
-		}
-	}
-	inputQuery := &parser.CreateTableQuery{
-		Name: tableName,
-		Cols: &tableColumns,
-	}
-	session.ExecuteCommand((*inputQuery).CreateOriginal())
-	// Generate payload
-	for i := 0; i < b.N; i++ {
-		columns := make([]*token.Token, columnCount)
-		values := make([]*token.Token, columnCount)
-		for i := range columns {
-			columns[i] = tableColumns[i].Name
-			values[i] = token.GenerateRandomToken(token.IdentifierKind)
-		}
-		tempQuery := &parser.InsertIntoQuery{
-			Table:       tableName,
-			ColumnNames: columns,
-			Values:      values,
-		}
-		b.StartTimer()
-		_, err := session.ExecuteCommand((*tempQuery).CreateOriginal())
 		b.StopTimer()
 		if err != nil {
 			b.Error(err)

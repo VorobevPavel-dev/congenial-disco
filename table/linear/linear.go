@@ -85,88 +85,66 @@ func (lt LinearTable) Insert(req *parser.InsertIntoQuery) (table.Table, error) {
 		"int":  tokenizer.NumericKind,
 		"text": tokenizer.IdentifierKind,
 	}
-	// Build map with <column name> - <supported token type>
-	// For query CREATE TABLE test (id INT, name TEXT);
-	// columnCorrelation will have next elements:
-	//		"id": tokenizer.NumericKind
-	//		"name": tokenizer.IdentifierKind
+	// Get kind of type for each column
 	columnCorrelation := make(map[string]tokenizer.TokenKind)
 	for _, column := range lt.Columns {
 		columnCorrelation[column.Name.Value] = typeCorreation[column.Datatype.Value]
 	}
 
-	mapToInsert := make(map[string]*tokenizer.Token)
-	for _, column := range lt.Columns {
-		mapToInsert[column.Name.Value] = &tokenizer.Token{
-			Value: "null",
-			Kind:  tokenizer.IdentifierKind,
-		}
-	}
-
-	// If names of columns were not provided - whole reow must be inserted
-	if len(req.ColumnNames) != 0 {
-		// Assert that all columns in request are actually in table and in correct order
-		lastVisited := -1
-		columnNames := lt.GetColumnsNames()
-
-		for index, reqColumn := range req.ColumnNames {
-			tempVisited := utility.FindStringInSlice(columnNames, reqColumn.Value)
-			if tempVisited == -1 {
-				return nil, fmt.Errorf("column name %s was not found in table %s",
-					reqColumn.Value,
-					req.Table.Value,
-				)
-			}
-			if tempVisited < lastVisited {
-				return nil, fmt.Errorf("columns in request %s are in incorrect order (desired: %s)",
-					req.CreateOriginal(),
-					utility.StringSliceToString(lt.GetColumnsNames()),
-				)
-			}
-			lastVisited = tempVisited
-			mapToInsert[reqColumn.Value] = req.Values[index]
-		}
-	} else {
-		// Assert that number of inserting values is equal to number of columns in table
-		if len(req.Values) != len(lt.Columns) {
-			return nil, fmt.Errorf("unexpected number of values without column specification (expected: %d, got: %d)",
-				len(req.Values),
-				len(lt.Columns),
-			)
-		}
-		index := 0
-		for key := range mapToInsert {
-			mapToInsert[key] = req.Values[index]
-			index++
-		}
-	}
-
-	// Check that mapToInsert's values have supported type
-	// Note: columnCorrelation has same number of keys as mapToInsert
-	for column, supportedType := range columnCorrelation {
-		if mapToInsert[column].Kind != supportedType {
-			// TODO: Add NULL type for token
-			// Skip "null" token
-			if mapToInsert[column].Value == "null" {
-				continue
-			}
-			return nil, fmt.Errorf("value %s for column with name %s has unsupported type (expected type to insert: %s)",
-				mapToInsert[column].Value,
-				column,
-				tokenizer.KindToString(supportedType),
+	// Assert that all value sets has same size as len(lt.Columns)
+	for _, valueSet := range req.Values {
+		if len(valueSet) != len(lt.Columns) {
+			return nil, fmt.Errorf(
+				"value set ahs incorrect number of values: %s",
+				tokenizer.Bracketize(valueSet),
 			)
 		}
 	}
 
-	// Get list of values from mapToInsert
-	toInsert := make([]*tokenizer.Token, len(mapToInsert))
-	index := 0
-	for _, value := range mapToInsert {
-		toInsert[index] = value
-		index++
+	// Construct map for insertion.
+	// For example:
+	//	- table has columns id, num, name
+	//	- values are (1,2,test), (3,4, test2)
+	// So mapToInsert will be
+	// id: [1, 3]
+	// num: [2, 4]
+	// name: [test, test2]
+	mapToInsert := make(map[string][]*tokenizer.Token)
+	for columnIndex, column := range lt.Columns {
+		intendedValues := []*tokenizer.Token{}
+		for valueSetIndex := range req.Values {
+			intendedValues = append(intendedValues, req.Values[valueSetIndex][columnIndex])
+		}
+		mapToInsert[column.Name.Value] = intendedValues
 	}
-	lt.Elements = append(lt.Elements, toInsert)
-	return table.Table(lt), nil
+
+	// Assert that all values for corresponding column have specified in table kind.
+	// For example if table has columns id int, num int, name test
+	// then all values from mapToInsert["id"] must be NumericType
+	// all values from mapToInsert["num"] must be NumericType
+	// all values from mapToInsert["name"] must be IdentifierType
+	for columnName, insertingValues := range mapToInsert {
+		expectedType := columnCorrelation[columnName]
+		for i, value := range insertingValues {
+			// get original set for error message
+			failedIndex := []*tokenizer.Token{}
+			for j := range req.Values {
+				failedIndex = append(failedIndex, req.Values[j][i])
+			}
+			if value.Kind != expectedType {
+				return nil, fmt.Errorf(
+					"for valueset %s value %s has incorrect type (expected %s, got: %s",
+					tokenizer.Bracketize(failedIndex),
+					value.Value,
+					tokenizer.KindToString(value.Kind),
+					tokenizer.KindToString(expectedType),
+				)
+			}
+		}
+	}
+	// If everything ok - get original values and insert them inside
+	lt.Elements = append(lt.Elements, req.Values...)
+	return lt, nil
 }
 
 func (lt LinearTable) ShowCreate() string {

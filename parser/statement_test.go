@@ -9,11 +9,6 @@ import (
 	token "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
-//getRandomFromKinds returns you random element of given kinds
-func getRandomFromKinds(kinds ...token.TokenKind) token.TokenKind {
-	return kinds[rand.Intn(len(kinds))]
-}
-
 func TestSelectStatementParsing(t *testing.T) {
 	t.Run("Test valid select parsing", func(t *testing.T) {
 		// Generate valid select parsing
@@ -72,25 +67,8 @@ func TestInsertStatementParsing(t *testing.T) {
 	t.Run("Test valid insert parsing", func(t *testing.T) {
 		numberOfTests := 100
 		for i := 0; i < numberOfTests; i++ {
-			// Generate INSERT INTO query
-			tableName := token.GenerateRandomToken(token.IdentifierKind)
-			// Generate column names and values
-			columnsCount := rand.Intn(100) + 1
-			columns := make([]*token.Token, columnsCount)
-			values := make([]*token.Token, columnsCount)
-			for i := range columns {
-				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
-				values[i] = token.GenerateRandomToken(getRandomFromKinds(
-					token.NumericKind,
-					token.IdentifierKind,
-				))
-			}
-			inputQuery := &InsertIntoQuery{
-				Table:       tableName,
-				ColumnNames: columns,
-				Values:      values,
-			}
-			inputSQL := (*inputQuery).CreateOriginal()
+			inputStatement, inputSQL := GenerateStatement(InsertType)
+			inputQuery := inputStatement.InsertStatement
 			// t.Logf("Generated SQL: %s", inputSQL)
 			// Start reverse parsing
 			result, err := Parse(inputSQL)
@@ -133,13 +111,24 @@ func TestInsertStatementParsing(t *testing.T) {
 
 			// Incorrect type of <column_name> in different postions
 			incColumnName := token.GenerateRandomToken(tt)
-			numberOfColumns := rand.Intn(10) + 1
-			columns := make([]*token.Token, numberOfColumns)
-			values := make([]*token.Token, numberOfColumns)
-			//	Fill slices
+			columnsCount := rand.Intn(10) + 1
+			columns := make([]*token.Token, columnsCount)
+			var values [][]*token.Token
 			for i := range columns {
 				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
-				values[i] = token.GenerateRandomToken(getRandomFromKinds(token.NumericKind, token.IdentifierKind))
+			}
+			for i := 1; i < rand.Intn(10)+1; i++ {
+				currentValueSet := []*token.Token{}
+				for range columns {
+					currentValueSet = append(currentValueSet,
+						token.GenerateRandomToken(
+							getRandomFromKinds(
+								token.NumericKind,
+								token.IdentifierKind,
+							),
+						))
+				}
+				values = append(values, currentValueSet)
 			}
 			columns[0] = incColumnName
 			for i := 0; i < len(columns); i++ {
@@ -157,15 +146,28 @@ func TestInsertStatementParsing(t *testing.T) {
 			token.SymbolKind,
 			token.TypeKind,
 		} {
-			numberOfColumns := rand.Intn(10) + 1
-			columns := make([]*token.Token, numberOfColumns)
-			values := make([]*token.Token, numberOfColumns)
-			//	Fill slices
+			columnsCount := rand.Intn(10) + 1
+			columns := make([]*token.Token, columnsCount)
+			var values [][]*token.Token
 			for i := range columns {
 				columns[i] = token.GenerateRandomToken(token.IdentifierKind)
-				values[i] = token.GenerateRandomToken(getRandomFromKinds(token.NumericKind, token.IdentifierKind))
 			}
-			values[0] = token.GenerateRandomToken(tt)
+			for i := 1; i < rand.Intn(10)+1; i++ {
+				currentValueSet := []*token.Token{}
+				for range columns {
+					currentValueSet = append(currentValueSet,
+						token.GenerateRandomToken(
+							getRandomFromKinds(
+								token.NumericKind,
+								token.IdentifierKind,
+							),
+						))
+				}
+				values = append(values, currentValueSet)
+			}
+			for rowIndex := range values {
+				values[rowIndex][0] = token.GenerateRandomToken(tt)
+			}
 			for i := 0; i < len(columns); i++ {
 				inputs = append(inputs, (&InsertIntoQuery{
 					Table:       token.GenerateRandomToken(token.IdentifierKind),

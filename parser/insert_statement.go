@@ -3,6 +3,7 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
@@ -18,7 +19,7 @@ import (
 type InsertIntoQuery struct {
 	Table       *t.Token
 	ColumnNames []*t.Token
-	Values      []*t.Token
+	Values      [][]*t.Token
 }
 
 // String method needs to be implemented in order to implement Query interface.
@@ -36,9 +37,11 @@ func (ins InsertIntoQuery) Equals(other *InsertIntoQuery) bool {
 		return false
 	}
 
-	for index := range ins.Values {
-		if !ins.Values[index].Equals(other.Values[index]) {
-			return false
+	for rowIndex := range ins.Values {
+		for columnIndex := range ins.Values[rowIndex] {
+			if !ins.Values[rowIndex][columnIndex].Equals(other.Values[rowIndex][columnIndex]) {
+				return false
+			}
 		}
 	}
 
@@ -57,10 +60,14 @@ func (ins InsertIntoQuery) Equals(other *InsertIntoQuery) bool {
 // CreateOriginal method needs to be implemented in order to implement Query interface.
 // Returns original SQL query representing data in current Query.
 func (ins InsertIntoQuery) CreateOriginal() string {
+	valuesSets := []string{}
+	for _, set := range ins.Values {
+		valuesSets = append(valuesSets, t.Bracketize(set))
+	}
 	result := fmt.Sprintf("INSERT INTO %s %s VALUES %s;",
 		ins.Table.Value,
 		t.Bracketize(ins.ColumnNames),
-		t.Bracketize(ins.Values),
+		strings.Join(valuesSets, ", "),
 	)
 	return result
 }

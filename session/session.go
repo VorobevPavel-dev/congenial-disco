@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
@@ -168,43 +167,4 @@ func formatCSV(input [][]*tokenizer.Token) string {
 		result += strings.Join(values, ",") + "\n"
 	}
 	return result
-}
-
-// BenchmarkLinear for every number i from 1 to 10^6
-// will create a table with i columns inside and will insert single line with i values
-func BenchmarkLinearSimpleInsertion() ([]string, error) {
-	result := make([]string, 1000001)
-	result[0] = "count,milliseconds"
-	for i := 1; i < 1000000; i++ {
-		session := InitSession()
-		tableName := tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
-		columns := make([]parser.ColumnDefinition, i)
-		columnNames := make([]*tokenizer.Token, i)
-		values := make([]*tokenizer.Token, i)
-		for j := range columns {
-			columnNames[j] = tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
-			columns[j] = parser.ColumnDefinition{
-				Name: columnNames[j],
-				Datatype: &tokenizer.Token{
-					Value: "text",
-					Kind:  tokenizer.TypeKind,
-				},
-			}
-			values[j] = tokenizer.GenerateRandomToken(tokenizer.IdentifierKind)
-		}
-		createTableSQL := parser.CreateTableQuery{Name: tableName, Cols: &columns}.CreateOriginal()
-		_, err := session.ExecuteCommand(createTableSQL)
-		if err != nil {
-			return nil, err
-		}
-		insertIntoSQL := parser.InsertIntoQuery{Table: tableName, ColumnNames: columnNames, Values: values}.CreateOriginal()
-		start := time.Now().UnixMilli()
-		_, err = session.ExecuteCommand(insertIntoSQL)
-		end := time.Now().UnixMilli()
-		if err != nil {
-			return nil, err
-		}
-		result[i] = fmt.Sprintf("%d,%d", i, end-start)
-	}
-	return result, nil
 }

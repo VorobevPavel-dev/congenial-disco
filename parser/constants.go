@@ -21,7 +21,8 @@ const (
 	stepInsColsetName
 	stepInsValuesKeyword
 	stepInsValuesetOpenBracket
-	stepInsValueValue
+	stepInsValuesetValue
+	stepInsValuesetCloseBracket
 	// SELECT branch
 
 	stepSelColName

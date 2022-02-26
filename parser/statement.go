@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 
 	t "github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
@@ -221,11 +222,12 @@ func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, 
 
 func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, error) {
 	var (
-		parsingInProgress bool        = true
-		step              parsingStep = stepInsIntoKeyword
-		tableName         *t.Token    = nil
-		columnNames       []*t.Token  = []*t.Token{}
-		values            []*t.Token  = []*t.Token{}
+		parsingInProgress bool         = true
+		step              parsingStep  = stepInsIntoKeyword
+		tableName         *t.Token     = nil
+		columnNames       []*t.Token   = []*t.Token{}
+		values            [][]*t.Token = [][]*t.Token{}
+		currentValueSet   []*t.Token
 	)
 	for *cursor < len(tokens) && parsingInProgress {
 		switch step {
@@ -270,26 +272,40 @@ func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, er
 				return nil, fmt.Errorf("expected values keyword at %d", tokens[*cursor].Position)
 			}
 			*cursor++
+			step = stepInsValuesetOpenBracket
+			continue
+		case stepInsValuesetOpenBracket:
 			if !tokens[*cursor].Equals(t.Reserved[t.SymbolKind]["("]) {
-				return nil, fmt.Errorf("expected opening bracket for values set at %d", tokens[*cursor].Position)
+				return nil, fmt.Errorf("expected opening bracket at %d", tokens[*cursor].Position)
 			}
 			*cursor++
-			step = stepInsValueValue
-			continue
-		case stepInsValueValue:
+			step = stepInsValuesetValue
+			currentValueSet = []*t.Token{}
+		case stepInsValuesetValue:
 			if !((tokens[*cursor].Kind == t.IdentifierKind) || (tokens[*cursor].Kind == t.NumericKind)) {
 				return nil, fmt.Errorf("values can be only identifiers or numbers but got %s at %d", tokens[*cursor].Value, tokens[*cursor].Position)
 			}
-			values = append(values, tokens[*cursor])
+			currentValueSet = append(currentValueSet, tokens[*cursor])
 			*cursor++
 			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"]) {
-				step = stepEnd
-				*cursor++
+				step = stepInsValuesetCloseBracket
 			} else if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
-				step = stepInsValueValue
+				step = stepInsValuesetValue
 				*cursor++
 			} else {
 				return nil, fmt.Errorf("expected comma ar closing bracket at %d", tokens[*cursor].Position)
+			}
+		case stepInsValuesetCloseBracket:
+			if !(tokens[*cursor].Equals(t.Reserved[t.SymbolKind][")"])) {
+				return nil, fmt.Errorf("expected closing bracket at %d", tokens[*cursor].Position)
+			}
+			values = append(values, currentValueSet)
+			*cursor++
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][","]) {
+				step = stepInsValuesetOpenBracket
+				*cursor++
+			} else {
+				step = stepEnd
 			}
 		case stepEnd:
 			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
@@ -404,4 +420,48 @@ func parseShowCreateBranch(tokens []*t.Token, cursor *int) (*ShowCreateQuery, er
 		}
 	}
 	return nil, fmt.Errorf("cannot parse query as SHOW CREATE query")
+}
+
+//getRandomFromKinds returns you random element of given kinds
+func getRandomFromKinds(kinds ...t.TokenKind) t.TokenKind {
+	return kinds[rand.Intn(len(kinds))]
+}
+
+func GenerateStatement(kind queryKind) (*Statement, string) {
+	switch kind {
+	case InsertType:
+		var (
+			values  [][]*t.Token
+			columns []*t.Token
+		)
+		tableName := t.GenerateRandomToken(t.IdentifierKind)
+		columnCount := rand.Intn(10) + 1
+		for i := 0; i < columnCount; i++ {
+			columns = append(columns, t.GenerateRandomToken(t.IdentifierKind))
+		}
+		// number of inserting sets
+		for i := 0; i < rand.Intn(5)+1; i++ {
+			tempValues := []*t.Token{}
+			// number of values in each set
+			for j := 0; j < columnCount; j++ {
+				randomKind := getRandomFromKinds(
+					t.NumericKind,
+					t.IdentifierKind,
+				)
+				tempValues = append(tempValues, t.GenerateRandomToken(randomKind))
+			}
+			values = append(values, tempValues)
+		}
+		inputQuery := InsertIntoQuery{
+			Table:       tableName,
+			ColumnNames: columns,
+			Values:      values,
+		}
+		inputSQL := inputQuery.CreateOriginal()
+		return &Statement{
+			InsertStatement: &inputQuery,
+			Type:            InsertType,
+		}, inputSQL
+	}
+	return nil, ""
 }
