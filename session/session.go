@@ -1,16 +1,12 @@
 package session
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
-	"github.com/VorobevPavel-dev/congenial-disco/table/column"
-	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
-	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 // Session is a struct describing tables inside current run of engine
@@ -23,38 +19,9 @@ func InitSession() Session {
 	session := Session{
 		tables: make(map[string]table.Table),
 	}
-	session.tables["system.tables"] = linear.LinearTable{
-		Columns: []parser.ColumnDefinition{
-			{
-				Name: &tokenizer.Token{
-					Value: "table_name",
-					Kind:  tokenizer.IdentifierKind,
-				},
-				Datatype: &tokenizer.Token{
-					Value: "text",
-					Kind:  tokenizer.IdentifierKind,
-				},
-			},
-			{
-				Name: &tokenizer.Token{
-					Value: "engine_type",
-					Kind:  tokenizer.IdentifierKind,
-				},
-				Datatype: &tokenizer.Token{
-					Value: "text",
-					Kind:  tokenizer.IdentifierKind,
-				},
-			},
-		},
-		Name: &tokenizer.Token{
-			Value: "system.tables",
-			Kind:  tokenizer.IdentifierKind,
-		},
-		Elements: [][]*tokenizer.Token{{
-			{Value: "system.tables", Kind: tokenizer.IdentifierKind},
-			{Value: "\"linear\"", Kind: tokenizer.IdentifierKind},
-		}},
-	}
+	session.tables["system.tables"] = table.LinearTable{}
+	session.ExecuteCommand("CREATE TABLE system.tables (table_name text, engine_type text) ENGINE linear;")
+	session.ExecuteCommand("INSERT INTO system.tables VALUES (system.tables, \"linear\";")
 	return session
 }
 
@@ -63,16 +30,16 @@ func (s *Session) CountTables() int {
 	return len(s.tables)
 }
 
-// ToString returns current state of session in JSON format where keys are table names and values are
-// number of rows inside.
-func (s *Session) ToString() string {
-	mapping := make(map[string]int)
-	for name, table := range s.tables {
-		mapping[name] = table.Count()
-	}
-	data, _ := json.Marshal(mapping)
-	return string(data)
-}
+// // ToString returns current state of session in JSON format where keys are table names and values are
+// // number of rows inside.
+// func (s *Session) ToString() string {
+// 	mapping := make(map[string]int)
+// 	for name, table := range s.tables {
+// 		mapping[name] = table.Count()
+// 	}
+// 	data, _ := json.Marshal(mapping)
+// 	return string(data)
+// }
 
 // ExecuteCommand parses input string into struct implementing Query interface
 // and executes query in engine. Return
@@ -118,9 +85,9 @@ func (s *Session) executeCreate(statement *parser.Statement) error {
 	engine = statement.CreateTableStatement.Engine.Value
 	switch engine {
 	case "linear":
-		t = table.Table(linear.LinearTable{})
-	case "column":
-		t = table.Table(column.ColumnTable{})
+		t = table.Table(table.LinearTable{})
+	// case "column":
+	// 	t = table.Table(column.ColumnTable{})
 	default:
 		return fmt.Errorf("current engine %s is not supported", engine)
 	}
@@ -163,13 +130,13 @@ func (s *Session) executeSelect(statement *parser.Statement) (string, error) {
 	return formatCSV(result), nil
 }
 
-func formatCSV(input [][]*tokenizer.Token) string {
+func formatCSV(input [][]string) string {
 	var result string
 	for _, line := range input {
 		// extract values
 		values := make([]string, len(line))
 		for i := range values {
-			values[i] = line[i].Value
+			values[i] = line[i]
 		}
 		result += strings.Join(values, ",") + "\n"
 	}

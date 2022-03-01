@@ -1,10 +1,9 @@
-package linear
+package table
 
 import (
 	"testing"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
-	"github.com/VorobevPavel-dev/congenial-disco/table"
 )
 
 func TestLinearTable(t *testing.T) {
@@ -20,7 +19,7 @@ func TestLinearTable(t *testing.T) {
 		} else if statement.CreateTableStatement == nil {
 			t.Error("Unable to parse input string as CREATE TABLE request")
 		}
-		table := table.Table(&LinearTable{})
+		table := Table(&LinearTable{})
 		table, _, _ = table.Create(statement.CreateTableStatement)
 		if !table.IsInitialized() {
 			t.Error("Table has no columns inside after creation request")

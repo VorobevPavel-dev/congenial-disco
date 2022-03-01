@@ -5,11 +5,6 @@
         "expect_error": false
     },
     {
-        "sql": "CREATE TABLE test_column (id INT, name TEXT) ENGINE column ORDER BY id;",
-        "expected_output": "ok",
-        "expect_error": false
-    },
-    {
         "sql": "INSERT INTO test VALUES (1, test_1);",
         "expected_output": "ok",
         "expect_error": false
@@ -20,28 +15,8 @@
         "expect_error": false
     },
     {
-        "sql": "INSERT INTO test_column VALUES (2, test_2);",
-        "expected_output": "ok",
-        "expect_error": false
-    },
-    {
-        "sql": "INSERT INTO test_column VALUES (1, test_1);",
-        "expected_output": "ok",
-        "expect_error": false
-    },
-    {
-        "sql": "INSERT INTO test_column VALUES (3, test_3), (4, test_4);",
-        "expected_output": "ok",
-        "expect_error": false
-    },
-    {
         "sql": "SELECT (id, name) FROM test;",
         "expected_output":"id,name\n1,test_1\n2,test_2\n3,test_3\n4,test_4",
-        "expect_error": false
-    },
-    {
-        "sql": "SELECT (id, name) from test_column;",
-        "expected_output": "id,name\n1,test_1\n2,test_2\n3,test_3\n4,test_4",
         "expect_error": false
     },
     {
@@ -61,7 +36,7 @@
     },
     {
         "sql": "SELECT (table_name, engine_type) FROM system.tables;",
-        "expected_output":"table_name,engine_type\nsystem.tables,\"linear\"\ntest,\"linear\"\ntest_column,\"column\"",
+        "expected_output":"table_name,engine_type\nsystem.tables,\"linear\"\ntest,\"linear\"",
         "expect_error": false
     }
 ]

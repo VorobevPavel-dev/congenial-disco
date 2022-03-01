@@ -1,18 +1,18 @@
-package linear
+package table
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
-	"github.com/VorobevPavel-dev/congenial-disco/table"
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
 
 type LinearTable struct {
-	Columns  []parser.ColumnDefinition
-	Elements [][]*tokenizer.Token
-	Name     *tokenizer.Token
+	//columns will contain column names with indexes from CREATE TABLE request
+	columns  map[int]string
+	elements [][]*element
+	name     string
 }
 
 func (lt LinearTable) IsInitialized() bool {
