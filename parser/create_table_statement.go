@@ -14,12 +14,6 @@ type ColumnDefinition struct {
 	Datatype *t.Token
 }
 
-type Setting struct {
-	Name     *t.Token
-	Relation *t.Token
-	Value    *t.Token
-}
-
 // Equals method is necessary for CreateTableQuery.Equals method.
 // It compares tokens for name and type for provided column definitions.
 func (cd ColumnDefinition) Equals(other ColumnDefinition) bool {
@@ -36,9 +30,9 @@ type CreateTableQuery struct {
 	// Name of table requested to be created
 	Name *t.Token
 	// Slice of column definitions that table will contain
-	Cols     *[]ColumnDefinition
-	Engine   *t.Token
-	Settings *[]Setting
+	Cols    *[]ColumnDefinition
+	Engine  *t.Token
+	OrderBy *t.Token
 }
 
 // String method needs to be implemented in order to implement Query interface.
@@ -55,6 +49,11 @@ func (ct CreateTableQuery) Equals(other *CreateTableQuery) bool {
 	if len(*ct.Cols) != len(*other.Cols) {
 		return false
 	}
+
+	if ct.OrderBy != nil && !ct.OrderBy.Equals(other.OrderBy) {
+		return false
+	}
+
 	for index := range *ct.Cols {
 		if !(*ct.Cols)[index].Equals((*other.Cols)[index]) {
 			return false

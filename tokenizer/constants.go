@@ -39,6 +39,8 @@ func Constants() map[TokenKind]map[string]*Token {
 			"engine":   {Value: "engine", Kind: KeywordKind},
 			"settings": {Value: "settings", Kind: KeywordKind},
 			"where":    {Value: "where", Kind: KeywordKind},
+			"order":    {Value: "order", Kind: KeywordKind},
+			"by":       {Value: "by", Kind: KeywordKind},
 		},
 		SymbolKind: {
 			";":  {Value: ";", Kind: SymbolKind},
@@ -57,6 +59,7 @@ func Constants() map[TokenKind]map[string]*Token {
 		},
 		EngineKind: {
 			"linear": {Value: "linear", Kind: EngineKind},
+			"column": {Value: "column", Kind: EngineKind},
 			// "blocked": {Value: "blocked", Kind: EngineKind},
 		},
 	}

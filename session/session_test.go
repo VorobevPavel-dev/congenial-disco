@@ -22,26 +22,29 @@ func TestCommandSequenceExecution(t *testing.T) {
 		inputSequenceFile string  = "./input_data.json"
 		rawSequence       []byte
 		inputSequence     []command
+		index             int
+		command           command
 	)
-	defer func() {
+	defer func(pos *int) {
 		if err := recover(); err != nil {
-			t.Errorf("Unexpected panic: %v", err)
+			t.Errorf("Unexpected panic on set %d: %v", index+1, err)
 		}
-	}()
+	}(&index)
 	rawSequence, _ = ioutil.ReadFile(inputSequenceFile)
 	json.Unmarshal(rawSequence, &inputSequence)
-	for index, command := range inputSequence {
+	for index, command = range inputSequence {
 		result, err := session.ExecuteCommand(command.SQL)
 		if err != nil {
 			if command.ExpectError {
 				continue
 			}
-			t.Errorf("error on command #%d: %v", index, err)
+			t.Errorf("error on command #%d: %v", index+1, err)
 		}
 		diff := strings.Compare(strings.TrimSpace(result), command.ExpectedOutput)
 		if diff != 0 {
 			t.Errorf(
-				"actial result differs from expected: %s => %s",
+				"actial result differs from expected on set %d: %s => %s",
+				index+1,
 				strings.TrimSpace(result),
 				command.ExpectedOutput,
 			)

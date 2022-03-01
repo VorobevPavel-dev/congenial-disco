@@ -14,6 +14,9 @@ const (
 	stepColumnType
 	stepEngineKeyword
 	stepEngineName
+	stepOrderKeyword
+	stepByKeyword
+	stepOrderColumn
 	// INSERT INTO branch
 
 	stepInsIntoKeyword

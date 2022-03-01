@@ -8,6 +8,7 @@ import (
 
 	"github.com/VorobevPavel-dev/congenial-disco/parser"
 	"github.com/VorobevPavel-dev/congenial-disco/table"
+	"github.com/VorobevPavel-dev/congenial-disco/table/column"
 	"github.com/VorobevPavel-dev/congenial-disco/table/linear"
 	"github.com/VorobevPavel-dev/congenial-disco/tokenizer"
 )
@@ -110,20 +111,26 @@ func (s *Session) executeCreate(statement *parser.Statement) error {
 	var (
 		table_name string
 		engine     string
+		t          table.Table
+		tn         string
+		err        error
 	)
 	engine = statement.CreateTableStatement.Engine.Value
 	switch engine {
 	case "linear":
-		t := table.Table(linear.LinearTable{})
-		t, tn, err := t.Create(statement.CreateTableStatement)
-		if err != nil {
-			return err
-		}
-		table_name = statement.CreateTableStatement.Name.Value
-		s.tables[tn] = t
+		t = table.Table(linear.LinearTable{})
+	case "column":
+		t = table.Table(column.ColumnTable{})
 	default:
 		return fmt.Errorf("current engine %s is not supported", engine)
 	}
+	t, tn, err = t.Create(statement.CreateTableStatement)
+	if err != nil {
+		return err
+	}
+	table_name = statement.CreateTableStatement.Name.Value
+	s.tables[tn] = t
+
 	// Add table to system.tables
 	request, _ := parser.Parse(fmt.Sprintf("INSERT INTO system.tables VALUES (%s, \"%s\");", table_name, engine))
 	s.executeInsert(request)

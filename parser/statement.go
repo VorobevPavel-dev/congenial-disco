@@ -145,6 +145,7 @@ func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, 
 		columnDefinitions       []ColumnDefinition = []ColumnDefinition{}
 		currentColumnDefinition ColumnDefinition   = ColumnDefinition{}
 		engine                  *t.Token           = nil
+		orderByColumn           *t.Token           = nil
 	)
 	for *cursor < len(tokens) && parsingInProgress {
 		switch step {
@@ -207,17 +208,49 @@ func parseCreateTableBranch(tokens []*t.Token, cursor *int) (*CreateTableQuery, 
 			engine = tokens[*cursor]
 			*cursor++
 			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
-				parsingInProgress = false
+				step = stepEnd
+				continue
+			} else if tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["order"]) {
+				step = stepOrderKeyword
+				continue
 			} else {
-				return nil, fmt.Errorf("expected SETTINGS or \";\" symbol at %d", tokens[*cursor].Position)
+				return nil, fmt.Errorf("expected ORDER or \";\" symbol at %d", tokens[*cursor].Position)
+			}
+		case stepOrderKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["order"]) {
+				return nil, fmt.Errorf("expected ORDER keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepByKeyword
+			continue
+		case stepByKeyword:
+			if !tokens[*cursor].Equals(t.Reserved[t.KeywordKind]["by"]) {
+				return nil, fmt.Errorf("expected BY keyword at %d", tokens[*cursor].Position)
+			}
+			*cursor++
+			step = stepOrderColumn
+			continue
+		case stepOrderColumn:
+			if tokens[*cursor].Kind != t.IdentifierKind {
+				return nil, fmt.Errorf("expected column name at %d", tokens[*cursor].Position)
+			}
+			orderByColumn = tokens[*cursor]
+			*cursor++
+			step = stepEnd
+		case stepEnd:
+			if tokens[*cursor].Equals(t.Reserved[t.SymbolKind][";"]) {
+				return &CreateTableQuery{
+					Name:    tableName,
+					Cols:    &columnDefinitions,
+					Engine:  engine,
+					OrderBy: orderByColumn,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("expected \";\" at %d", tokens[*cursor].Position)
 			}
 		}
 	}
-	return &CreateTableQuery{
-		Name:   tableName,
-		Cols:   &columnDefinitions,
-		Engine: engine,
-	}, nil
+	return nil, fmt.Errorf("cannot parse query as CREATE TABLE query")
 }
 
 func parseInsertIntoBranch(tokens []*t.Token, cursor *int) (*InsertIntoQuery, error) {

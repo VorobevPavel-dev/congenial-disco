@@ -45,6 +45,55 @@ func (t *Token) Equals(other *Token) bool {
 	return t.Value == other.Value && t.Kind == other.Kind
 }
 
+// Compare will return errpr if tokens have different types
+// 0 if values are equal
+// 1 if value of first is greater than value of second
+// -1 if value of second is greater than value of first
+func (t *Token) Compare(other *Token) (int, error) {
+	if t.Kind != other.Kind {
+		return 0, fmt.Errorf(
+			"tokens have different kinds: %s => %s",
+			KindToString(t.Kind),
+			KindToString(other.Kind),
+		)
+	}
+	switch t.Kind {
+	case NumericKind:
+		l, _ := strconv.Atoi(t.Value)
+		r, _ := strconv.Atoi(other.Value)
+		if l == r {
+			return 0, nil
+		} else if l > r {
+			return 1, nil
+		} else {
+			return -1, nil
+		}
+	default:
+		return strings.Compare(t.Value, other.Value), nil
+	}
+}
+
+func (t *Token) Geq(other *Token) (bool, error) {
+	if t.Kind != other.Kind {
+		return false, fmt.Errorf(
+			"tokens have different kinds: %s => %s",
+			KindToString(t.Kind),
+			KindToString(other.Kind),
+		)
+	}
+	switch t.Kind {
+	case NumericKind:
+		l, _ := strconv.Atoi(t.Value)
+		r, _ := strconv.Atoi(other.Value)
+		if l >= r {
+			return true, nil
+		}
+		return false, nil
+	default:
+		return strings.Compare(t.Value, other.Value)+1 != 0, nil
+	}
+}
+
 func (t *Token) String() string {
 	data, _ := json.Marshal(t)
 	return string(data)
